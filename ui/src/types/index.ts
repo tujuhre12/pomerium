@@ -83,6 +83,14 @@ type BasePageData = {
   csrfToken?: string;
 };
 
+export type PolicyEvaluationTrace = {
+  id?: string;
+  explanation?: string;
+  remediation?: string;
+  allow?: boolean;
+  deny?: boolean;
+};
+
 export type ErrorPageData = BasePageData & {
   page: "Error";
 
@@ -92,6 +100,7 @@ export type ErrorPageData = BasePageData & {
   requestId?: string;
   status?: number;
   statusText?: string;
+  policyEvaluationTraces?: PolicyEvaluationTrace[];
 };
 
 export type UserInfoData = {
