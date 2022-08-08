@@ -32,14 +32,14 @@ jobs:
           fetch-depth: 0
 
       - name: cache go binaries
-        uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129
+        uses: actions/cache@f4278025ab0f432ce369118909e46deec636f50c
         id: cache-go-bin
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
           restore-keys: ${{ runner.os }}-go-bin
 
-      - uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129
+      - uses: actions/cache@f4278025ab0f432ce369118909e46deec636f50c
         with:
           path: |
             ~/go/pkg/mod
@@ -78,14 +78,14 @@ jobs:
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: cache go binaries
-        uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129
+        uses: actions/cache@f4278025ab0f432ce369118909e46deec636f50c
         id: cache-go-bin
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
           restore-keys: ${{ runner.os }}-go-bin
 
-      - uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129
+      - uses: actions/cache@f4278025ab0f432ce369118909e46deec636f50c
         with:
           path: |
             ~/go/pkg/mod
@@ -133,7 +133,7 @@ jobs:
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
         with:
           fetch-depth: 0
-      - uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129
+      - uses: actions/cache@f4278025ab0f432ce369118909e46deec636f50c
         with:
           path: |
             ~/go/pkg
@@ -177,7 +177,7 @@ jobs:
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
         with:
           fetch-depth: 0
-      - uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129
+      - uses: actions/cache@f4278025ab0f432ce369118909e46deec636f50c
         with:
           path: |
             ~/go/pkg/mod
@@ -210,7 +210,7 @@ jobs:
         uses: docker/setup-buildx-action@dc7b9719a96d48369863986a06765841d7ea23f6
 
       - name: Docker Build
-        uses: docker/build-push-action@1cb9d22b932e4832bb29793b7777ec860fc1cde0
+        uses: docker/build-push-action@c84f38281176d4c9cdb1626ffafcd6b3911b5d94
         with:
           context: .
           file: ./Dockerfile
@@ -226,7 +226,7 @@ jobs:
       - uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a
         with:
           go-version: 1.18.x
-      - uses: actions/setup-python@c4e89fac7e8767b327bbad6cb4d859eda999cf08
+      - uses: actions/setup-python@b55428b1882923874294fa556849718a1d7f2ca5
         with:
           python-version: "3.x"
       - uses: pre-commit/action@876132a3c26aa072b09eab6c5395b4749eeb2435
