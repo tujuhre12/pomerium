@@ -15,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
 // registerDashboardHandlers returns the proxy service's ServeMux
@@ -32,9 +33,6 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	// called following authenticate auth flow to grab a new or existing session
 	// the route specific cookie is returned in a signed query params
 	c := r.PathPrefix(dashboardPath + "/callback").Subrouter()
-	c.Use(func(h http.Handler) http.Handler {
-		return middleware.ValidateSignature(p.state.Load().sharedKey)(h)
-	})
 	c.Path("/").Handler(httputil.HandlerFunc(p.Callback)).Methods(http.MethodGet)
 
 	// Programmatic API handlers and middleware
@@ -105,26 +103,41 @@ func (p *Proxy) deviceEnrolled(w http.ResponseWriter, r *http.Request) error {
 // Callback handles the result of a successful call to the authenticate service
 // and is responsible setting per-route sessions.
 func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) error {
-	redirectURLString := r.FormValue(urlutil.QueryRedirectURI)
-	encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
-
-	redirectURL, err := urlutil.ParseAndValidateURL(redirectURLString)
+	err := r.ParseForm()
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	rawJWT, err := p.saveCallbackSession(w, r, encryptedSession)
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
+	if hpke.IsEncryptedURL(r.Form) {
+		return p.callbackViaHPKE(w, r)
 	}
+	return p.callbackViaEncryptedSession(w, r)
+}
 
-	// if programmatic, encode the session jwt as a query param
-	if isProgrammatic := r.FormValue(urlutil.QueryIsProgrammatic); isProgrammatic == "true" {
-		q := redirectURL.Query()
-		q.Set(urlutil.QueryPomeriumJWT, string(rawJWT))
-		redirectURL.RawQuery = q.Encode()
-	}
-	httputil.Redirect(w, r, redirectURL.String(), http.StatusFound)
+func (p *Proxy) callbackViaEncryptedSession(w http.ResponseWriter, r *http.Request) error {
+	middleware.ValidateSignature(p.state.Load().sharedKey)(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		redirectURLString := r.FormValue(urlutil.QueryRedirectURI)
+		encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
+
+		redirectURL, err := urlutil.ParseAndValidateURL(redirectURLString)
+		if err != nil {
+			return httputil.NewError(http.StatusBadRequest, err)
+		}
+
+		rawJWT, err := p.saveCallbackSession(w, r, encryptedSession)
+		if err != nil {
+			return httputil.NewError(http.StatusBadRequest, err)
+		}
+
+		// if programmatic, encode the session jwt as a query param
+		if isProgrammatic := r.FormValue(urlutil.QueryIsProgrammatic); isProgrammatic == "true" {
+			q := redirectURL.Query()
+			q.Set(urlutil.QueryPomeriumJWT, string(rawJWT))
+			redirectURL.RawQuery = q.Encode()
+		}
+		httputil.Redirect(w, r, redirectURL.String(), http.StatusFound)
+		return nil
+	}))
 	return nil
 }
 

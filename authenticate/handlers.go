@@ -124,7 +124,6 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 		ctx, span := trace.StartSpan(r.Context(), "authenticate.VerifySession")
 		defer span.End()
 
-		state := a.state.Load()
 		options := a.options.Load()
 		idp, err := options.GetIdentityProviderForID(r.FormValue(urlutil.QueryIdentityProviderID))
 		if err != nil {
@@ -146,18 +145,6 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 				Str("session_idp_id", sessionState.IdentityProviderID).
 				Str("id", sessionState.ID).
 				Msg("authenticate: session not associated with identity provider")
-			return a.reauthenticateOrFail(w, r, err)
-		}
-
-		if state.dataBrokerClient == nil {
-			return errors.New("authenticate: databroker client cannot be nil")
-		}
-		if _, err = session.Get(ctx, state.dataBrokerClient, sessionState.ID); err != nil {
-			log.FromRequest(r).Info().
-				Err(err).
-				Str("idp_id", idp.GetId()).
-				Str("id", sessionState.ID).
-				Msg("authenticate: session not found in databroker")
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
@@ -224,27 +211,8 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	// sign the route session, as a JWT
-	signedJWT, err := state.sharedEncoder.Marshal(newSession)
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-
-	// encrypt our route-scoped JWT to avoid accidental logging of queryparams
-	encryptedJWT := cryptutil.Encrypt(a.state.Load().sharedCipher, signedJWT, nil)
-	// base64 our encrypted payload for URL-friendlyness
-	encodedJWT := base64.URLEncoding.EncodeToString(encryptedJWT)
-
-	callbackURL, err := urlutil.GetCallbackURL(r, encodedJWT)
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-
-	// build our hmac-d redirect URL with our session, pointing back to the
-	// proxy's callback URL which is responsible for setting our new route-session
-	uri := urlutil.NewSignedURL(state.sharedKey, callbackURL)
-	httputil.Redirect(w, r, uri.String(), http.StatusFound)
-	return nil
+	records := a.loadRecords(r)
+	return a.redirectViaHPKE(w, r, state.hpkePrivateKey.PublicKey(), &newSession, records)
 }
 
 // SignOut signs the user out and attempts to revoke the user's identity session
@@ -465,10 +433,11 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// save the session and access token to the databroker
-	err = a.saveSessionToDataBroker(ctx, r, &newState, claims, accessToken)
+	records, err := a.buildDataBrokerRecords(ctx, r, &newState, claims, accessToken)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, err)
 	}
+	a.storeRecords(w, records)
 
 	// ...  and the user state to local storage.
 	if err := state.sessionStore.SaveSession(w, r, &newState); err != nil {
@@ -587,23 +556,22 @@ func (a *Authenticate) fillEnterpriseUserInfoData(
 	}
 }
 
-func (a *Authenticate) saveSessionToDataBroker(
+func (a *Authenticate) buildDataBrokerRecords(
 	ctx context.Context,
 	r *http.Request,
 	sessionState *sessions.State,
 	claims identity.SessionClaims,
 	accessToken *oauth2.Token,
-) error {
-	state := a.state.Load()
+) (*databroker.Records, error) {
 	options := a.options.Load()
 	idp, err := options.GetIdentityProviderForID(r.FormValue(urlutil.QueryIdentityProviderID))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	authenticator, err := a.cfg.getIdentityProvider(options, idp.GetId())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	sessionExpiry := timestamppb.New(time.Now().Add(options.CookieExpire))
@@ -628,30 +596,20 @@ func (a *Authenticate) saveSessionToDataBroker(
 	s.AddClaims(claims.Flatten())
 
 	var managerUser manager.User
-	managerUser.User, _ = user.Get(ctx, state.dataBrokerClient, s.GetUserId())
-	if managerUser.User == nil {
-		// if no user exists yet, create a new one
-		managerUser.User = &user.User{
-			Id: s.GetUserId(),
-		}
+	managerUser.User = &user.User{
+		Id: s.GetUserId(),
 	}
 	err = authenticator.UpdateUserInfo(ctx, accessToken, &managerUser)
 	if err != nil {
-		return fmt.Errorf("authenticate: error retrieving user info: %w", err)
-	}
-	_, err = databroker.Put(ctx, state.dataBrokerClient, managerUser.User)
-	if err != nil {
-		return fmt.Errorf("authenticate: error saving user: %w", err)
+		return nil, fmt.Errorf("authenticate: error retrieving user info: %w", err)
 	}
 
-	res, err := session.Put(ctx, state.dataBrokerClient, s)
-	if err != nil {
-		return fmt.Errorf("authenticate: error saving session: %w", err)
-	}
-	sessionState.DatabrokerServerVersion = res.GetServerVersion()
-	sessionState.DatabrokerRecordVersion = res.GetRecord().GetVersion()
-
-	return nil
+	return &databroker.Records{
+		Records: []*databroker.Record{
+			databroker.NewRecord(s),
+			databroker.NewRecord(managerUser.User),
+		},
+	}, nil
 }
 
 // revokeSession always clears the local session and tries to revoke the associated session stored in the

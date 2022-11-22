@@ -9,6 +9,7 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
+message Records { repeated Record records = 1; }
 message Record {
   uint64 version = 1;
   string type = 2;
