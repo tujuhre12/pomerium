@@ -41,7 +41,7 @@ type authenticateState struct {
 	// sessionLoaders are a collection of session loaders to attempt to pull
 	// a user's session state from
 	sessionLoader  sessions.SessionLoader
-	hpkePrivateKey hpke.PrivateKey
+	hpkePrivateKey *hpke.PrivateKey
 
 	jwk *jose.JSONWebKeySet
 

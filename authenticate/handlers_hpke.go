@@ -21,7 +21,7 @@ import (
 const defaultExpiry = time.Minute * 5
 
 func (a *Authenticate) redirectViaHPKE(w http.ResponseWriter, r *http.Request,
-	receiverPublicKey hpke.PublicKey,
+	receiverPublicKey *hpke.PublicKey,
 	sessionState *sessions.State,
 	records *databroker.Records,
 ) error {

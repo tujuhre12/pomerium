@@ -136,7 +136,7 @@ func (p *Proxy) getRedirectURIFromValues(values url.Values) (*url.URL, error) {
 	return redirectURI, nil
 }
 
-func (p *Proxy) validateSenderPublicKey(ctx context.Context, senderPublicKey hpke.PublicKey) error {
+func (p *Proxy) validateSenderPublicKey(ctx context.Context, senderPublicKey *hpke.PublicKey) error {
 	state := p.state.Load()
 
 	authenticatePublicKey, err := state.authenticateKeyFetcher.FetchPublicKey(ctx)

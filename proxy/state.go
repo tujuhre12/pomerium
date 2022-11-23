@@ -31,7 +31,7 @@ type proxyState struct {
 	cookieSecret           []byte
 	sessionStore           sessions.SessionStore
 	jwtClaimHeaders        config.JWTClaimHeaders
-	hpkePrivateKey         hpke.PrivateKey
+	hpkePrivateKey         *hpke.PrivateKey
 	authenticateKeyFetcher hpke.KeyFetcher
 
 	dataBrokerClient databroker.DataBrokerServiceClient
