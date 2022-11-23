@@ -100,7 +100,6 @@ func (a *Authenticate) getCallbackURL(r *http.Request) (*url.URL, error) {
 
 func (a *Authenticate) storeRecords(w http.ResponseWriter, records *databroker.Records) {
 	state := a.state.Load()
-	options := a.options.Load()
 
 	decrypted, err := protojson.Marshal(records)
 	if err != nil {
@@ -113,12 +112,7 @@ func (a *Authenticate) storeRecords(w http.ResponseWriter, records *databroker.R
 	http.SetCookie(w, &http.Cookie{
 		Name:  urlutil.QueryRecords,
 		Value: base64.RawURLEncoding.EncodeToString(encrypted),
-
-		Path:     "/",
-		Domain:   options.CookieDomain,
-		HttpOnly: options.CookieHTTPOnly,
-		Secure:   options.CookieSecure,
-		Expires:  time.Now().Add(options.CookieExpire),
+		Path:  "/",
 	})
 }
 

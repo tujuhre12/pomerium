@@ -78,7 +78,7 @@ func (p *Proxy) callbackViaHPKE(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// save the session state
-	rawJWT, err := json.Marshal(sessionState)
+	rawJWT, err := state.encoder.Marshal(sessionState)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error marshaling session state: %w", err))
 	}
