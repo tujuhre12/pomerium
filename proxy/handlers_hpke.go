@@ -8,12 +8,15 @@ import (
 	"net/url"
 
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
@@ -48,12 +51,17 @@ func (p *Proxy) callbackViaHPKE(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// retrieve the values from the query string
-	sessionState, err := p.getSessionStateFromValues(values)
+	ss, err := getFromValues[sessions.State](values, urlutil.QuerySessionState)
 	if err != nil {
 		return err
 	}
 
-	records, err := p.getRecordsFromValues(values)
+	s, err := getFromValues[session.Session](values, urlutil.QuerySession)
+	if err != nil {
+		return err
+	}
+
+	u, err := getFromValues[user.User](values, urlutil.QueryUser)
 	if err != nil {
 		return err
 	}
@@ -65,20 +73,23 @@ func (p *Proxy) callbackViaHPKE(w http.ResponseWriter, r *http.Request) error {
 
 	// save the records
 	res, err := state.dataBrokerClient.Put(r.Context(), &databroker.PutRequest{
-		Records: records.GetRecords(),
+		Records: []*databroker.Record{
+			databroker.NewRecord(s),
+			databroker.NewRecord(u),
+		},
 	})
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving databroker records: %w", err))
 	}
-	sessionState.DatabrokerServerVersion = res.GetServerVersion()
+	ss.DatabrokerServerVersion = res.GetServerVersion()
 	for _, record := range res.GetRecords() {
-		if record.GetVersion() > sessionState.DatabrokerRecordVersion {
-			sessionState.DatabrokerRecordVersion = record.GetVersion()
+		if record.GetVersion() > ss.DatabrokerRecordVersion {
+			ss.DatabrokerRecordVersion = record.GetVersion()
 		}
 	}
 
 	// save the session state
-	rawJWT, err := state.encoder.Marshal(sessionState)
+	rawJWT, err := state.encoder.Marshal(ss)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error marshaling session state: %w", err))
 	}
@@ -96,32 +107,6 @@ func (p *Proxy) callbackViaHPKE(w http.ResponseWriter, r *http.Request) error {
 	// redirect
 	httputil.Redirect(w, r, redirectURI.String(), http.StatusFound)
 	return nil
-}
-
-func (p *Proxy) getSessionStateFromValues(values url.Values) (*sessions.State, error) {
-	rawSessionState := values.Get(urlutil.QuerySession)
-	if rawSessionState == "" {
-		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("missing %s", urlutil.QuerySession))
-	}
-	var sessionState sessions.State
-	err := json.Unmarshal([]byte(rawSessionState), &sessionState)
-	if err != nil {
-		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("invalid %s", urlutil.QuerySession))
-	}
-	return &sessionState, nil
-}
-
-func (p *Proxy) getRecordsFromValues(values url.Values) (*databroker.Records, error) {
-	rawRecords := values.Get(urlutil.QueryRecords)
-	if rawRecords == "" {
-		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("missing %s", urlutil.QueryRecords))
-	}
-	var records databroker.Records
-	err := protojson.Unmarshal([]byte(rawRecords), &records)
-	if err != nil {
-		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("invalid %s", urlutil.QueryRecords))
-	}
-	return &records, nil
 }
 
 func (p *Proxy) getRedirectURIFromValues(values url.Values) (*url.URL, error) {
@@ -149,4 +134,22 @@ func (p *Proxy) validateSenderPublicKey(ctx context.Context, senderPublicKey *hp
 	}
 
 	return nil
+}
+
+func getFromValues[T any](values url.Values, name string) (*T, error) {
+	raw := values.Get(name)
+	if raw == "" {
+		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("missing %s", name))
+	}
+	var err error
+	var obj T
+	if protoObj, ok := (interface{})(&obj).(proto.Message); ok {
+		err = protojson.Unmarshal([]byte(raw), protoObj)
+	} else {
+		err = json.Unmarshal([]byte(raw), &obj)
+	}
+	if err != nil {
+		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("invalid %s: %w", name, err))
+	}
+	return &obj, nil
 }

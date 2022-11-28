@@ -14,9 +14,10 @@ const (
 	QueryIssued             = "pomerium_issued"
 	QueryPomeriumJWT        = "pomerium_jwt"
 	QuerySession            = "pomerium_session"
+	QuerySessionState       = "pomerium_session_state"
 	QuerySessionEncrypted   = "pomerium_session_encrypted"
-	QueryRecords            = "pomerium_records"
 	QueryRedirectURI        = "pomerium_redirect_uri"
+	QueryUser               = "pomerium_user"
 )
 
 // URL signature based query params used for verifying the authenticity of a URL.

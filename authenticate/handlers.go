@@ -33,6 +33,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/webauthnutil"
 )
 
@@ -95,7 +96,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Use(a.RetrieveSession)
 	sr.Use(a.VerifySession)
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
-	sr.Path("/sign_in").Handler(a.requireValidSignature(a.SignIn))
+	sr.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
 	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
 	sr.Path("/webauthn").Handler(a.webauthn)
 	sr.Path("/device-enrolled").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
@@ -167,12 +168,18 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	state := a.state.Load()
 	options := a.options.Load()
-	idp, err := options.GetIdentityProviderForID(r.FormValue(urlutil.QueryIdentityProviderID))
+
+	if err := r.ParseForm(); err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+	proxyPublicKey, requestParams, err := hpke.DecryptURLValues(state.hpkePrivateKey, r.Form)
+
+	idp, err := options.GetIdentityProviderForID(requestParams.Get(urlutil.QueryIdentityProviderID))
 	if err != nil {
 		return err
 	}
 
-	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
+	redirectURL, err := urlutil.ParseAndValidateURL(requestParams.Get(urlutil.QueryRedirectURI))
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
@@ -180,7 +187,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	jwtAudience := []string{state.redirectURL.Host, redirectURL.Host}
 
 	// if the callback is explicitly set, set it and add an additional audience
-	if callbackStr := r.FormValue(urlutil.QueryCallbackURI); callbackStr != "" {
+	if callbackStr := requestParams.Get(urlutil.QueryCallbackURI); callbackStr != "" {
 		callbackURL, err := urlutil.ParseAndValidateURL(callbackStr)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
@@ -207,7 +214,14 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	records := a.loadRecords(r)
-	return a.redirectViaHPKE(w, r, state.hpkePrivateKey.PublicKey(), &newSession, records)
+
+	redirectTo, err := handlers.BuildCallbackURL(state.hpkePrivateKey, proxyPublicKey, requestParams, &newSession, records)
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
+
+	httputil.Redirect(w, r, redirectTo, http.StatusFound)
+	return nil
 }
 
 // SignOut signs the user out and attempts to revoke the user's identity session
