@@ -12,9 +12,9 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/hpke"
@@ -50,21 +50,22 @@ func (p *Proxy) callbackViaHPKE(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	// retrieve the values from the query string
-	ss, err := getFromValues[sessions.State](values, urlutil.QuerySessionState)
+	profile, err := getFromValues[identity.Profile](values, urlutil.QueryIdentityProfile)
 	if err != nil {
 		return err
 	}
 
-	s, err := getFromValues[session.Session](values, urlutil.QuerySession)
+	ss := newSessionStateFromIdentityProfile(profile)
+	s, err := session.Get(r.Context(), state.dataBrokerClient, ss.ID)
 	if err != nil {
-		return err
+		s = &session.Session{Id: ss.ID}
 	}
-
-	u, err := getFromValues[user.User](values, urlutil.QueryUser)
+	p.fillSession(s, profile, ss)
+	u, err := user.Get(r.Context(), state.dataBrokerClient, ss.UserID())
 	if err != nil {
-		return err
+		u = &user.User{Id: ss.UserID()}
 	}
+	p.fillUser(u, profile, ss)
 
 	redirectURI, err := p.getRedirectURIFromValues(values)
 	if err != nil {

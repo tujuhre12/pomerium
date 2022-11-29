@@ -13,8 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
-	"golang.org/x/oauth2"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/datasource/pkg/directory"
@@ -206,16 +204,14 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		s = sessions.NewState(idp.GetId())
 	}
 
-	newSession := s.WithNewIssuer(state.redirectURL.Host, jwtAudience)
-
 	// re-persist the session, useful when session was evicted from session
 	if err := state.sessionStore.SaveSession(w, r, s); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	records := a.loadRecords(r)
+	profile := loadIdentityProfile(r, state.cookieCipher)
 
-	redirectTo, err := handlers.BuildCallbackURL(state.hpkePrivateKey, proxyPublicKey, requestParams, &newSession, records)
+	redirectTo, err := handlers.BuildCallbackURL(state.hpkePrivateKey, proxyPublicKey, requestParams, profile)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}
@@ -442,11 +438,11 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// save the session and access token to the databroker
-	records, err := a.buildDataBrokerRecords(ctx, r, &newState, claims, accessToken)
+	profile, err := a.buildIdentityProfile(ctx, r, &newState, claims, accessToken)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, err)
 	}
-	a.storeRecords(w, records)
+	storeIdentityProfile(w, state.cookieCipher, profile)
 
 	// ...  and the user state to local storage.
 	if err := state.sessionStore.SaveSession(w, r, &newState); err != nil {
@@ -563,62 +559,6 @@ func (a *Authenticate) fillEnterpriseUserInfoData(
 			}
 		}
 	}
-}
-
-func (a *Authenticate) buildDataBrokerRecords(
-	ctx context.Context,
-	r *http.Request,
-	sessionState *sessions.State,
-	claims identity.SessionClaims,
-	accessToken *oauth2.Token,
-) (*databroker.Records, error) {
-	options := a.options.Load()
-	idp, err := options.GetIdentityProviderForID(r.FormValue(urlutil.QueryIdentityProviderID))
-	if err != nil {
-		return nil, err
-	}
-
-	authenticator, err := a.cfg.getIdentityProvider(options, idp.GetId())
-	if err != nil {
-		return nil, err
-	}
-
-	sessionExpiry := timestamppb.New(time.Now().Add(options.CookieExpire))
-	idTokenIssuedAt := timestamppb.New(sessionState.IssuedAt.Time())
-
-	s := &session.Session{
-		Id:         sessionState.ID,
-		UserId:     sessionState.UserID(authenticator.Name()),
-		IssuedAt:   timestamppb.Now(),
-		AccessedAt: timestamppb.Now(),
-		ExpiresAt:  sessionExpiry,
-		IdToken: &session.IDToken{
-			Issuer:    sessionState.Issuer, // todo(bdd): the issuer is not authN but the downstream IdP from the claims
-			Subject:   sessionState.Subject,
-			ExpiresAt: sessionExpiry,
-			IssuedAt:  idTokenIssuedAt,
-		},
-		OauthToken: manager.ToOAuthToken(accessToken),
-		Audience:   sessionState.Audience,
-	}
-	s.SetRawIDToken(claims.RawIDToken)
-	s.AddClaims(claims.Flatten())
-
-	var managerUser manager.User
-	managerUser.User = &user.User{
-		Id: s.GetUserId(),
-	}
-	err = authenticator.UpdateUserInfo(ctx, accessToken, &managerUser)
-	if err != nil {
-		return nil, fmt.Errorf("authenticate: error retrieving user info: %w", err)
-	}
-
-	return &databroker.Records{
-		Records: []*databroker.Record{
-			databroker.NewRecord(s),
-			databroker.NewRecord(managerUser.User),
-		},
-	}, nil
 }
 
 // revokeSession always clears the local session and tries to revoke the associated session stored in the

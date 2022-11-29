@@ -9,15 +9,15 @@ const (
 	QueryDeviceType         = "pomerium_device_type"
 	QueryEnrollmentToken    = "pomerium_enrollment_token" //nolint
 	QueryExpiry             = "pomerium_expiry"
+	QueryIdentityProfile    = "pomerium_identity_profile"
 	QueryIdentityProviderID = "pomerium_idp_id"
 	QueryIsProgrammatic     = "pomerium_programmatic"
 	QueryIssued             = "pomerium_issued"
 	QueryPomeriumJWT        = "pomerium_jwt"
-	QuerySession            = "pomerium_session"
-	QuerySessionState       = "pomerium_session_state"
-	QuerySessionEncrypted   = "pomerium_session_encrypted"
 	QueryRedirectURI        = "pomerium_redirect_uri"
-	QueryUser               = "pomerium_user"
+	QuerySession            = "pomerium_session"
+	QuerySessionEncrypted   = "pomerium_session_encrypted"
+	QuerySessionState       = "pomerium_session_state"
 )
 
 // URL signature based query params used for verifying the authenticity of a URL.

@@ -1,16 +1,14 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
@@ -21,8 +19,7 @@ func BuildCallbackURL(
 	authenticatePrivateKey *hpke.PrivateKey,
 	proxyPublicKey *hpke.PublicKey,
 	requestParams url.Values,
-	sessionState *sessions.State,
-	records *databroker.Records,
+	profile *identity.Profile,
 ) (string, error) {
 	redirectURL, err := urlutil.ParseAndValidateURL(requestParams.Get(urlutil.QueryRedirectURI))
 	if err != nil {
@@ -50,17 +47,11 @@ func BuildCallbackURL(
 	}
 	callbackParams.Set(urlutil.QueryRedirectURI, redirectURL.String())
 
-	rawRecords, err := protojson.Marshal(records)
+	rawProfile, err := protojson.Marshal(profile)
 	if err != nil {
-		return "", fmt.Errorf("error marshaling databroker records: %w", err)
+		return "", fmt.Errorf("error marshaling identity profile: %w", err)
 	}
-	callbackParams.Set(urlutil.QueryRecords, string(rawRecords))
-
-	rawSessionState, err := json.Marshal(sessionState)
-	if err != nil {
-		return "", fmt.Errorf("error marshaling session state: %w", err)
-	}
-	callbackParams.Set(urlutil.QuerySession, string(rawSessionState))
+	callbackParams.Set(urlutil.QueryIdentityProfile, string(rawProfile))
 
 	urlutil.BuildTimeParameters(callbackParams, signInExpiry)
 
