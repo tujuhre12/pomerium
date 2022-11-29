@@ -171,26 +171,13 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 	proxyPublicKey, requestParams, err := hpke.DecryptURLValues(state.hpkePrivateKey, r.Form)
-
-	idp, err := options.GetIdentityProviderForID(requestParams.Get(urlutil.QueryIdentityProviderID))
 	if err != nil {
 		return err
 	}
 
-	redirectURL, err := urlutil.ParseAndValidateURL(requestParams.Get(urlutil.QueryRedirectURI))
+	idp, err := options.GetIdentityProviderForID(requestParams.Get(urlutil.QueryIdentityProviderID))
 	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-
-	jwtAudience := []string{state.redirectURL.Host, redirectURL.Host}
-
-	// if the callback is explicitly set, set it and add an additional audience
-	if callbackStr := requestParams.Get(urlutil.QueryCallbackURI); callbackStr != "" {
-		callbackURL, err := urlutil.ParseAndValidateURL(callbackStr)
-		if err != nil {
-			return httputil.NewError(http.StatusBadRequest, err)
-		}
-		jwtAudience = append(jwtAudience, callbackURL.Host)
+		return err
 	}
 
 	s, err := a.getSessionFromCtx(ctx)
