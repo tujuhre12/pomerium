@@ -12,7 +12,9 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -61,7 +63,7 @@ func (a *Authenticate) buildIdentityProfile(
 }
 
 func loadIdentityProfile(r *http.Request, aead cipher.AEAD) *identitypb.Profile {
-	cookie, err := r.Cookie(urlutil.QueryIdentityProfile)
+	cookie, err := httputil.LoadChunkedCookie(r, urlutil.QueryIdentityProfile)
 	if err != nil {
 		return nil
 	}
@@ -90,10 +92,10 @@ func storeIdentityProfile(w http.ResponseWriter, aead cipher.AEAD, profile *iden
 		// this shouldn't happen
 		panic(fmt.Errorf("error marshaling message: %w", err))
 	}
+	log.Info(context.Background()).Str("profile", string(decrypted)).Send()
 
 	encrypted := cryptutil.Encrypt(aead, decrypted, nil)
-
-	http.SetCookie(w, &http.Cookie{
+	httputil.SetChunkedCookie(w, &http.Cookie{
 		Name:  urlutil.QueryIdentityProfile,
 		Value: base64.RawURLEncoding.EncodeToString(encrypted),
 		Path:  "/",
