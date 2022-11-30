@@ -123,6 +123,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 		ctx, span := trace.StartSpan(r.Context(), "authenticate.VerifySession")
 		defer span.End()
 
+		state := a.state.Load()
 		options := a.options.Load()
 		idp, err := options.GetIdentityProviderForID(r.FormValue(urlutil.QueryIdentityProviderID))
 		if err != nil {
@@ -144,6 +145,15 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 				Str("session_idp_id", sessionState.IdentityProviderID).
 				Str("id", sessionState.ID).
 				Msg("authenticate: session not associated with identity provider")
+			return a.reauthenticateOrFail(w, r, err)
+		}
+
+		_, err = loadIdentityProfile(r, state.cookieCipher)
+		if err != nil {
+			log.FromRequest(r).Info().
+				Err(err).
+				Str("idp_id", idp.GetId()).
+				Msg("authenticate: identity profile load error")
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
@@ -196,7 +206,10 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	profile := loadIdentityProfile(r, state.cookieCipher)
+	profile, err := loadIdentityProfile(r, state.cookieCipher)
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
 
 	redirectTo, err := handlers.BuildCallbackURL(state.hpkePrivateKey, proxyPublicKey, requestParams, profile)
 	if err != nil {
@@ -508,11 +521,14 @@ func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, 
 	}
 	creationOptions, requestOptions, _ := a.webauthn.GetOptions(r)
 
+	profile, _ := loadIdentityProfile(r, state.cookieCipher)
+
 	data := handlers.UserInfoData{
 		CSRFToken:      csrf.Token(r),
 		IsImpersonated: isImpersonated,
 		Session:        pbSession,
 		User:           pbUser,
+		Profile:        profile,
 
 		WebAuthnCreationOptions: creationOptions,
 		WebAuthnRequestOptions:  requestOptions,

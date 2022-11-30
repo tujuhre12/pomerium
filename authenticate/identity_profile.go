@@ -14,7 +14,6 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -62,28 +61,28 @@ func (a *Authenticate) buildIdentityProfile(
 	}, nil
 }
 
-func loadIdentityProfile(r *http.Request, aead cipher.AEAD) *identitypb.Profile {
+func loadIdentityProfile(r *http.Request, aead cipher.AEAD) (*identitypb.Profile, error) {
 	cookie, err := httputil.LoadChunkedCookie(r, urlutil.QueryIdentityProfile)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("authenticate: error loading identity profile cookie: %w", err)
 	}
 
 	encrypted, err := base64.RawURLEncoding.DecodeString(cookie.Value)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("authenticate: error decoding identity profile cookie: %w", err)
 	}
 
 	decrypted, err := cryptutil.Decrypt(aead, encrypted, nil)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("authenticate: error decrypting identity profile cookie: %w", err)
 	}
 
 	var profile identitypb.Profile
 	err = protojson.Unmarshal(decrypted, &profile)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("authenticate: error unmarshaling identity profile cookie: %w", err)
 	}
-	return &profile
+	return &profile, nil
 }
 
 func storeIdentityProfile(w http.ResponseWriter, aead cipher.AEAD, profile *identitypb.Profile) {
@@ -92,8 +91,6 @@ func storeIdentityProfile(w http.ResponseWriter, aead cipher.AEAD, profile *iden
 		// this shouldn't happen
 		panic(fmt.Errorf("error marshaling message: %w", err))
 	}
-	log.Info(context.Background()).Str("profile", string(decrypted)).Send()
-
 	encrypted := cryptutil.Encrypt(aead, decrypted, nil)
 	httputil.SetChunkedCookie(w, &http.Cookie{
 		Name:  urlutil.QueryIdentityProfile,
