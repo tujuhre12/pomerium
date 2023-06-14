@@ -4,6 +4,7 @@ package pomerium.config;
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/config";
 
 import "google/protobuf/duration.proto";
+import "google/protobuf/empty.proto";
 import "google/protobuf/struct.proto";
 import "envoy/config/cluster/v3/cluster.proto";
 import "envoy/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto";
@@ -233,4 +234,13 @@ message Settings {
   optional string logo_url = 89;
   optional string favicon_url = 90;
   optional string error_message_first_paragraph = 91;
+}
+
+message ResourceBundleUpdatedResponse {
+  string type = 1;
+  string name = 2;
+}
+
+service ResourceBundleService {
+  rpc ResourceBundleUpdated(google.protobuf.Empty) returns (stream ResourceBundleUpdatedResponse);
 }
