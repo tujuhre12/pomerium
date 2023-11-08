@@ -301,8 +301,6 @@ type Options struct {
 	AuditKey *PublicKeyEncryptionKeyOptions `mapstructure:"audit_key"`
 
 	BrandingOptions httputil.BrandingOptions
-
-	PassIdentityHeaders *bool `mapstructure:"pass_identity_headers" yaml:"pass_identity_headers"`
 }
 
 type certificateFilePair struct {
@@ -1498,7 +1496,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setSlice(&o.ProgrammaticRedirectDomainWhitelist, settings.ProgrammaticRedirectDomainWhitelist)
 	setAuditKey(&o.AuditKey, settings.AuditKey)
 	setCodecType(&o.CodecType, settings.CodecType)
-	setOptional(&o.PassIdentityHeaders, settings.PassIdentityHeaders)
 	o.BrandingOptions = settings
 }
 
