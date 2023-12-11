@@ -7,10 +7,25 @@ import (
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 )
 
+type (
+	// AuthEventKind is the authenticateflow.AuthEventKind.
+	AuthEventKind = authenticateflow.AuthEventKind
+	// AuthEvent is the authenticateflow.AuthEvent.
+	AuthEvent = authenticateflow.AuthEvent
+	// AuthEventFn is the authenticateflow.AuthEventFn.
+	AuthEventFn = authenticateflow.AuthEventFn
+)
+
+// re-export constants
+const (
+	AuthEventSignInRequest  = authenticateflow.AuthEventSignInRequest
+	AuthEventSignInComplete = authenticateflow.AuthEventSignInComplete
+)
+
 type authenticateConfig struct {
 	getIdentityProvider func(options *config.Options, idpID string) (identity.Authenticator, error)
 	profileTrimFn       func(*identitypb.Profile)
-	authEventFn         authenticateflow.AuthEventFn
+	authEventFn         AuthEventFn
 }
 
 // An Option customizes the Authenticate config.
