@@ -11,6 +11,78 @@ security:
   - bearerAuth: []
 
 paths:
+  /autocert/files:
+    get:
+      description: List files
+      operationId: autocertList
+      parameters:
+        - $ref: "#/components/parameters/autocertPrefix"
+        - $ref: "#/components/parameters/autocertRecursive"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /autocert/files/{key}:
+    delete:
+      description: Delete a file
+      operationId: autocertDelete
+      parameters:
+        - $ref: "#/components/parameters/autocertKey"
+      responses:
+        "204":
+          description: OK
+    get:
+      description: Load a file
+      operationId: autocertLoad
+      parameters:
+        - $ref: "#/components/parameters/autocertKey"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+    head:
+      description: Retrieve file info
+      operationId: autocertStat
+      parameters:
+        - $ref: "#/components/parameters/autocertKey"
+      responses:
+        "204":
+          description: OK
+          headers:
+            X-Is-Terminal:
+              description: Whether or not the key is a file or directory
+              schema:
+                type: boolean
+    put:
+      description: Store a file
+      operationId: autocertStore
+      parameters:
+        - $ref: "#/components/parameters/autocertKey"
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: OK
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
   /bootstrap:
     get:
       description: Get cluster bootstrap configuration
@@ -151,6 +223,27 @@ paths:
 
 components:
   parameters:
+    autocertKey:
+      name: key
+      in: path
+      description: autocert file key
+      required: true
+      schema:
+        type: string
+    autocertPrefix:
+      name: prefix
+      in: query
+      description: autocert file list prefix
+      required: false
+      schema:
+        type: string
+    autocertRecursive:
+      name: recursive
+      in: query
+      description: autocert file list recursively
+      required: false
+      schema:
+        type: boolean
     bundleId:
       name: bundleId
       in: path

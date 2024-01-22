@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -16,6 +17,21 @@ import (
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+
+	// (GET /autocert/files)
+	AutocertList(w http.ResponseWriter, r *http.Request, params AutocertListParams)
+
+	// (DELETE /autocert/files/{key})
+	AutocertDelete(w http.ResponseWriter, r *http.Request, key AutocertKey)
+
+	// (GET /autocert/files/{key})
+	AutocertLoad(w http.ResponseWriter, r *http.Request, key AutocertKey)
+
+	// (HEAD /autocert/files/{key})
+	AutocertStat(w http.ResponseWriter, r *http.Request, key AutocertKey)
+
+	// (PUT /autocert/files/{key})
+	AutocertStore(w http.ResponseWriter, r *http.Request, key AutocertKey)
 
 	// (GET /bootstrap)
 	GetClusterBootstrapConfig(w http.ResponseWriter, r *http.Request)
@@ -36,6 +52,31 @@ type ServerInterface interface {
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// (GET /autocert/files)
+func (_ Unimplemented) AutocertList(w http.ResponseWriter, r *http.Request, params AutocertListParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (DELETE /autocert/files/{key})
+func (_ Unimplemented) AutocertDelete(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /autocert/files/{key})
+func (_ Unimplemented) AutocertLoad(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (HEAD /autocert/files/{key})
+func (_ Unimplemented) AutocertStat(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /autocert/files/{key})
+func (_ Unimplemented) AutocertStore(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // (GET /bootstrap)
 func (_ Unimplemented) GetClusterBootstrapConfig(w http.ResponseWriter, r *http.Request) {
@@ -70,6 +111,156 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// AutocertList operation middleware
+func (siw *ServerInterfaceWrapper) AutocertList(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AutocertListParams
+
+	// ------------- Optional query parameter "prefix" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "prefix", r.URL.Query(), &params.Prefix)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "prefix", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "recursive" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "recursive", r.URL.Query(), &params.Recursive)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "recursive", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AutocertList(w, r, params)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// AutocertDelete operation middleware
+func (siw *ServerInterfaceWrapper) AutocertDelete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "key" -------------
+	var key AutocertKey
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "key", runtime.ParamLocationPath, chi.URLParam(r, "key"), &key)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AutocertDelete(w, r, key)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// AutocertLoad operation middleware
+func (siw *ServerInterfaceWrapper) AutocertLoad(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "key" -------------
+	var key AutocertKey
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "key", runtime.ParamLocationPath, chi.URLParam(r, "key"), &key)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AutocertLoad(w, r, key)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// AutocertStat operation middleware
+func (siw *ServerInterfaceWrapper) AutocertStat(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "key" -------------
+	var key AutocertKey
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "key", runtime.ParamLocationPath, chi.URLParam(r, "key"), &key)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AutocertStat(w, r, key)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// AutocertStore operation middleware
+func (siw *ServerInterfaceWrapper) AutocertStore(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "key" -------------
+	var key AutocertKey
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "key", runtime.ParamLocationPath, chi.URLParam(r, "key"), &key)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AutocertStore(w, r, key)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
 
 // GetClusterBootstrapConfig operation middleware
 func (siw *ServerInterfaceWrapper) GetClusterBootstrapConfig(w http.ResponseWriter, r *http.Request) {
@@ -290,6 +481,21 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/autocert/files", wrapper.AutocertList)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/autocert/files/{key}", wrapper.AutocertDelete)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/autocert/files/{key}", wrapper.AutocertLoad)
+	})
+	r.Group(func(r chi.Router) {
+		r.Head(options.BaseURL+"/autocert/files/{key}", wrapper.AutocertStat)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/autocert/files/{key}", wrapper.AutocertStore)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/bootstrap", wrapper.GetClusterBootstrapConfig)
 	})
 	r.Group(func(r chi.Router) {
@@ -306,6 +512,110 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 
 	return r
+}
+
+type AutocertListRequestObject struct {
+	Params AutocertListParams
+}
+
+type AutocertListResponseObject interface {
+	VisitAutocertListResponse(w http.ResponseWriter) error
+}
+
+type AutocertList200JSONResponse []string
+
+func (response AutocertList200JSONResponse) VisitAutocertListResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AutocertDeleteRequestObject struct {
+	Key AutocertKey `json:"key"`
+}
+
+type AutocertDeleteResponseObject interface {
+	VisitAutocertDeleteResponse(w http.ResponseWriter) error
+}
+
+type AutocertDelete204Response struct {
+}
+
+func (response AutocertDelete204Response) VisitAutocertDeleteResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type AutocertLoadRequestObject struct {
+	Key AutocertKey `json:"key"`
+}
+
+type AutocertLoadResponseObject interface {
+	VisitAutocertLoadResponse(w http.ResponseWriter) error
+}
+
+type AutocertLoad200ApplicationoctetStreamResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response AutocertLoad200ApplicationoctetStreamResponse) VisitAutocertLoadResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/octet-stream")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type AutocertStatRequestObject struct {
+	Key AutocertKey `json:"key"`
+}
+
+type AutocertStatResponseObject interface {
+	VisitAutocertStatResponse(w http.ResponseWriter) error
+}
+
+type AutocertStat204Response struct {
+}
+
+func (response AutocertStat204Response) VisitAutocertStatResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type AutocertStoreRequestObject struct {
+	Key  AutocertKey `json:"key"`
+	Body io.Reader
+}
+
+type AutocertStoreResponseObject interface {
+	VisitAutocertStoreResponse(w http.ResponseWriter) error
+}
+
+type AutocertStore200ApplicationoctetStreamResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response AutocertStore200ApplicationoctetStreamResponse) VisitAutocertStoreResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/octet-stream")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
 }
 
 type GetClusterBootstrapConfigRequestObject struct {
@@ -493,6 +803,21 @@ func (response ExchangeClusterIdentityToken500JSONResponse) VisitExchangeCluster
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 
+	// (GET /autocert/files)
+	AutocertList(ctx context.Context, request AutocertListRequestObject) (AutocertListResponseObject, error)
+
+	// (DELETE /autocert/files/{key})
+	AutocertDelete(ctx context.Context, request AutocertDeleteRequestObject) (AutocertDeleteResponseObject, error)
+
+	// (GET /autocert/files/{key})
+	AutocertLoad(ctx context.Context, request AutocertLoadRequestObject) (AutocertLoadResponseObject, error)
+
+	// (HEAD /autocert/files/{key})
+	AutocertStat(ctx context.Context, request AutocertStatRequestObject) (AutocertStatResponseObject, error)
+
+	// (PUT /autocert/files/{key})
+	AutocertStore(ctx context.Context, request AutocertStoreRequestObject) (AutocertStoreResponseObject, error)
+
 	// (GET /bootstrap)
 	GetClusterBootstrapConfig(ctx context.Context, request GetClusterBootstrapConfigRequestObject) (GetClusterBootstrapConfigResponseObject, error)
 
@@ -536,6 +861,138 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// AutocertList operation middleware
+func (sh *strictHandler) AutocertList(w http.ResponseWriter, r *http.Request, params AutocertListParams) {
+	var request AutocertListRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AutocertList(ctx, request.(AutocertListRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AutocertList")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AutocertListResponseObject); ok {
+		if err := validResponse.VisitAutocertListResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AutocertDelete operation middleware
+func (sh *strictHandler) AutocertDelete(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+	var request AutocertDeleteRequestObject
+
+	request.Key = key
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AutocertDelete(ctx, request.(AutocertDeleteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AutocertDelete")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AutocertDeleteResponseObject); ok {
+		if err := validResponse.VisitAutocertDeleteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AutocertLoad operation middleware
+func (sh *strictHandler) AutocertLoad(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+	var request AutocertLoadRequestObject
+
+	request.Key = key
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AutocertLoad(ctx, request.(AutocertLoadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AutocertLoad")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AutocertLoadResponseObject); ok {
+		if err := validResponse.VisitAutocertLoadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AutocertStat operation middleware
+func (sh *strictHandler) AutocertStat(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+	var request AutocertStatRequestObject
+
+	request.Key = key
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AutocertStat(ctx, request.(AutocertStatRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AutocertStat")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AutocertStatResponseObject); ok {
+		if err := validResponse.VisitAutocertStatResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AutocertStore operation middleware
+func (sh *strictHandler) AutocertStore(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+	var request AutocertStoreRequestObject
+
+	request.Key = key
+
+	request.Body = r.Body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AutocertStore(ctx, request.(AutocertStoreRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AutocertStore")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AutocertStoreResponseObject); ok {
+		if err := validResponse.VisitAutocertStoreResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // GetClusterBootstrapConfig operation middleware

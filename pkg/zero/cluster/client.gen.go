@@ -89,6 +89,21 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// AutocertList request
+	AutocertList(ctx context.Context, params *AutocertListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AutocertDelete request
+	AutocertDelete(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AutocertLoad request
+	AutocertLoad(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AutocertStat request
+	AutocertStat(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AutocertStoreWithBody request with any body
+	AutocertStoreWithBody(ctx context.Context, key AutocertKey, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetClusterBootstrapConfig request
 	GetClusterBootstrapConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -107,6 +122,66 @@ type ClientInterface interface {
 	ExchangeClusterIdentityTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	ExchangeClusterIdentityToken(ctx context.Context, body ExchangeClusterIdentityTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) AutocertList(ctx context.Context, params *AutocertListParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAutocertListRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AutocertDelete(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAutocertDeleteRequest(c.Server, key)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AutocertLoad(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAutocertLoadRequest(c.Server, key)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AutocertStat(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAutocertStatRequest(c.Server, key)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AutocertStoreWithBody(ctx context.Context, key AutocertKey, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAutocertStoreRequestWithBody(c.Server, key, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) GetClusterBootstrapConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -191,6 +266,209 @@ func (c *Client) ExchangeClusterIdentityToken(ctx context.Context, body Exchange
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewAutocertListRequest generates requests for AutocertList
+func NewAutocertListRequest(server string, params *AutocertListParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/autocert/files")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Prefix != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "prefix", runtime.ParamLocationQuery, *params.Prefix); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Recursive != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "recursive", runtime.ParamLocationQuery, *params.Recursive); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAutocertDeleteRequest generates requests for AutocertDelete
+func NewAutocertDeleteRequest(server string, key AutocertKey) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "key", runtime.ParamLocationPath, key)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/autocert/files/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAutocertLoadRequest generates requests for AutocertLoad
+func NewAutocertLoadRequest(server string, key AutocertKey) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "key", runtime.ParamLocationPath, key)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/autocert/files/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAutocertStatRequest generates requests for AutocertStat
+func NewAutocertStatRequest(server string, key AutocertKey) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "key", runtime.ParamLocationPath, key)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/autocert/files/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("HEAD", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAutocertStoreRequestWithBody generates requests for AutocertStore with any type of body
+func NewAutocertStoreRequestWithBody(server string, key AutocertKey, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "key", runtime.ParamLocationPath, key)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/autocert/files/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
 }
 
 // NewGetClusterBootstrapConfigRequest generates requests for GetClusterBootstrapConfig
@@ -411,6 +689,21 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// AutocertListWithResponse request
+	AutocertListWithResponse(ctx context.Context, params *AutocertListParams, reqEditors ...RequestEditorFn) (*AutocertListResp, error)
+
+	// AutocertDeleteWithResponse request
+	AutocertDeleteWithResponse(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*AutocertDeleteResp, error)
+
+	// AutocertLoadWithResponse request
+	AutocertLoadWithResponse(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*AutocertLoadResp, error)
+
+	// AutocertStatWithResponse request
+	AutocertStatWithResponse(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*AutocertStatResp, error)
+
+	// AutocertStoreWithBodyWithResponse request with any body
+	AutocertStoreWithBodyWithResponse(ctx context.Context, key AutocertKey, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AutocertStoreResp, error)
+
 	// GetClusterBootstrapConfigWithResponse request
 	GetClusterBootstrapConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetClusterBootstrapConfigResp, error)
 
@@ -429,6 +722,112 @@ type ClientWithResponsesInterface interface {
 	ExchangeClusterIdentityTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExchangeClusterIdentityTokenResp, error)
 
 	ExchangeClusterIdentityTokenWithResponse(ctx context.Context, body ExchangeClusterIdentityTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*ExchangeClusterIdentityTokenResp, error)
+}
+
+type AutocertListResp struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]string
+}
+
+// Status returns HTTPResponse.Status
+func (r AutocertListResp) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AutocertListResp) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AutocertDeleteResp struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r AutocertDeleteResp) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AutocertDeleteResp) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AutocertLoadResp struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r AutocertLoadResp) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AutocertLoadResp) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AutocertStatResp struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r AutocertStatResp) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AutocertStatResp) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AutocertStoreResp struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r AutocertStoreResp) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AutocertStoreResp) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type GetClusterBootstrapConfigResp struct {
@@ -551,6 +950,51 @@ func (r ExchangeClusterIdentityTokenResp) StatusCode() int {
 	return 0
 }
 
+// AutocertListWithResponse request returning *AutocertListResp
+func (c *ClientWithResponses) AutocertListWithResponse(ctx context.Context, params *AutocertListParams, reqEditors ...RequestEditorFn) (*AutocertListResp, error) {
+	rsp, err := c.AutocertList(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAutocertListResp(rsp)
+}
+
+// AutocertDeleteWithResponse request returning *AutocertDeleteResp
+func (c *ClientWithResponses) AutocertDeleteWithResponse(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*AutocertDeleteResp, error) {
+	rsp, err := c.AutocertDelete(ctx, key, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAutocertDeleteResp(rsp)
+}
+
+// AutocertLoadWithResponse request returning *AutocertLoadResp
+func (c *ClientWithResponses) AutocertLoadWithResponse(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*AutocertLoadResp, error) {
+	rsp, err := c.AutocertLoad(ctx, key, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAutocertLoadResp(rsp)
+}
+
+// AutocertStatWithResponse request returning *AutocertStatResp
+func (c *ClientWithResponses) AutocertStatWithResponse(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*AutocertStatResp, error) {
+	rsp, err := c.AutocertStat(ctx, key, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAutocertStatResp(rsp)
+}
+
+// AutocertStoreWithBodyWithResponse request with arbitrary body returning *AutocertStoreResp
+func (c *ClientWithResponses) AutocertStoreWithBodyWithResponse(ctx context.Context, key AutocertKey, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AutocertStoreResp, error) {
+	rsp, err := c.AutocertStoreWithBody(ctx, key, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAutocertStoreResp(rsp)
+}
+
 // GetClusterBootstrapConfigWithResponse request returning *GetClusterBootstrapConfigResp
 func (c *ClientWithResponses) GetClusterBootstrapConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetClusterBootstrapConfigResp, error) {
 	rsp, err := c.GetClusterBootstrapConfig(ctx, reqEditors...)
@@ -610,6 +1054,96 @@ func (c *ClientWithResponses) ExchangeClusterIdentityTokenWithResponse(ctx conte
 		return nil, err
 	}
 	return ParseExchangeClusterIdentityTokenResp(rsp)
+}
+
+// ParseAutocertListResp parses an HTTP response from a AutocertListWithResponse call
+func ParseAutocertListResp(rsp *http.Response) (*AutocertListResp, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AutocertListResp{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAutocertDeleteResp parses an HTTP response from a AutocertDeleteWithResponse call
+func ParseAutocertDeleteResp(rsp *http.Response) (*AutocertDeleteResp, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AutocertDeleteResp{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseAutocertLoadResp parses an HTTP response from a AutocertLoadWithResponse call
+func ParseAutocertLoadResp(rsp *http.Response) (*AutocertLoadResp, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AutocertLoadResp{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseAutocertStatResp parses an HTTP response from a AutocertStatWithResponse call
+func ParseAutocertStatResp(rsp *http.Response) (*AutocertStatResp, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AutocertStatResp{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseAutocertStoreResp parses an HTTP response from a AutocertStoreWithResponse call
+func ParseAutocertStoreResp(rsp *http.Response) (*AutocertStoreResp, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AutocertStoreResp{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
 }
 
 // ParseGetClusterBootstrapConfigResp parses an HTTP response from a GetClusterBootstrapConfigWithResponse call

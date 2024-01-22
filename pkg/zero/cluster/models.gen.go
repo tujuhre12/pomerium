@@ -89,8 +89,26 @@ type GetBundlesResponse struct {
 	Bundles []Bundle `json:"bundles"`
 }
 
+// AutocertKey defines model for autocertKey.
+type AutocertKey = string
+
+// AutocertPrefix defines model for autocertPrefix.
+type AutocertPrefix = string
+
+// AutocertRecursive defines model for autocertRecursive.
+type AutocertRecursive = bool
+
 // BundleId defines model for bundleId.
 type BundleId = string
+
+// AutocertListParams defines parameters for AutocertList.
+type AutocertListParams struct {
+	// Prefix autocert file list prefix
+	Prefix *AutocertPrefix `form:"prefix,omitempty" json:"prefix,omitempty"`
+
+	// Recursive autocert file list recursively
+	Recursive *AutocertRecursive `form:"recursive,omitempty" json:"recursive,omitempty"`
+}
 
 // ReportClusterResourceBundleStatusJSONRequestBody defines body for ReportClusterResourceBundleStatus for application/json ContentType.
 type ReportClusterResourceBundleStatusJSONRequestBody = BundleStatus
