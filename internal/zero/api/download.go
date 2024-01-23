@@ -118,7 +118,7 @@ func (api *API) updateBundleDownloadParams(ctx context.Context, id string) (*clu
 	now := time.Now()
 
 	resp, err := apierror.CheckResponse[cluster_api.DownloadBundleResponse](
-		api.cluster.DownloadClusterResourceBundleWithResponse(ctx, id),
+		api.Cluster.DownloadClusterResourceBundleWithResponse(ctx, id),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get bundle download URL: %w", err)
