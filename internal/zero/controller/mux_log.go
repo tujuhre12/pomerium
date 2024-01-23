@@ -6,13 +6,14 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/internal/log"
+	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 )
 
 func (c *controller) RunConnectLog(ctx context.Context) error {
 	logger := log.Ctx(ctx).With().Str("service", "connect-mux").Logger().Level(zerolog.InfoLevel)
 
-	return c.api.Watch(ctx,
+	return sdk.GlobalAPI.Load().Watch(ctx,
 		connect_mux.WithOnConnected(func(ctx context.Context) {
 			logger.Info().Msg("connected")
 		}),

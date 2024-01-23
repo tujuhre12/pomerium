@@ -12,6 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/caddyserver/certmagic"
+
+	sdk "github.com/pomerium/pomerium/internal/zero/api"
 )
 
 var (
@@ -93,6 +95,14 @@ func GetCertMagicStorage(ctx context.Context, dst string) (certmagic.Storage, er
 		client := s3.NewFromConfig(cfg)
 
 		return newS3Storage(client, bucket, prefix), nil
+
+	case "zero":
+		api := sdk.GlobalAPI.Load()
+		if api == nil {
+			return nil, fmt.Errorf("zero autocert storage can only be used in managed mode")
+		}
+
+		return newZeroStorage(api.Cluster), nil
 	}
 
 	return nil, errUnknownStorageProvider

@@ -4,6 +4,7 @@ package zero
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/zero/apierror"
@@ -16,10 +17,14 @@ import (
 	connect_api "github.com/pomerium/pomerium/pkg/zero/connect"
 )
 
+// GlobalAPI is a global instance of the API. It may be null.
+var GlobalAPI atomic.Pointer[API]
+
 // API is a Pomerium Zero Cluster API client
 type API struct {
+	Cluster cluster_api.ClientWithResponsesInterface
+
 	cfg              *config
-	cluster          cluster_api.ClientWithResponsesInterface
 	mux              *connect_mux.Mux
 	downloadURLCache *cluster_api.URLCache
 	tokenFn          func(ctx context.Context, ttl time.Duration) (string, error)
@@ -66,8 +71,9 @@ func NewAPI(ctx context.Context, opts ...Option) (*API, error) {
 	}
 
 	return &API{
+		Cluster: clusterClient,
+
 		cfg:              cfg,
-		cluster:          clusterClient,
 		mux:              connect_mux.New(connect_api.NewConnectClient(connectGRPCConn)),
 		downloadURLCache: cluster_api.NewURLCache(),
 		tokenFn:          tokenCache.GetToken,
@@ -98,14 +104,14 @@ func (api *API) Watch(ctx context.Context, opts ...WatchOption) error {
 // GetClusterBootstrapConfig fetches the bootstrap configuration from the cluster API
 func (api *API) GetClusterBootstrapConfig(ctx context.Context) (*cluster_api.BootstrapConfig, error) {
 	return apierror.CheckResponse[cluster_api.BootstrapConfig](
-		api.cluster.GetClusterBootstrapConfigWithResponse(ctx),
+		api.Cluster.GetClusterBootstrapConfigWithResponse(ctx),
 	)
 }
 
 // GetClusterResourceBundles fetches the resource bundles from the cluster API
 func (api *API) GetClusterResourceBundles(ctx context.Context) (*cluster_api.GetBundlesResponse, error) {
 	return apierror.CheckResponse[cluster_api.GetBundlesResponse](
-		api.cluster.GetClusterResourceBundlesWithResponse(ctx),
+		api.Cluster.GetClusterResourceBundlesWithResponse(ctx),
 	)
 }
 
@@ -118,7 +124,7 @@ func (api *API) ReportBundleAppliedSuccess(ctx context.Context, bundleID string,
 	}
 
 	_, err := apierror.CheckResponse[cluster_api.EmptyResponse](
-		api.cluster.ReportClusterResourceBundleStatusWithResponse(ctx, bundleID, status),
+		api.Cluster.ReportClusterResourceBundleStatusWithResponse(ctx, bundleID, status),
 	)
 	if err != nil {
 		return fmt.Errorf("error reporting bundle status: %w", err)
@@ -141,7 +147,7 @@ func (api *API) ReportBundleAppliedFailure(
 	}
 
 	_, err = apierror.CheckResponse[cluster_api.EmptyResponse](
-		api.cluster.ReportClusterResourceBundleStatusWithResponse(ctx, bundleID, status),
+		api.Cluster.ReportClusterResourceBundleStatusWithResponse(ctx, bundleID, status),
 	)
 	if err != nil {
 		return fmt.Errorf("error reporting bundle status: %w", err)

@@ -53,8 +53,6 @@ func Run(ctx context.Context, opts ...Option) error {
 type controller struct {
 	cfg *controllerConfig
 
-	api *sdk.API
-
 	bootstrapConfig *bootstrap.Source
 
 	databrokerClient databroker.DataBrokerServiceClient
@@ -71,8 +69,7 @@ func (c *controller) initAPI(ctx context.Context) error {
 		return fmt.Errorf("error initializing cloud api: %w", err)
 	}
 
-	c.api = api
-
+	sdk.GlobalAPI.Store(api)
 	return nil
 }
 
@@ -97,7 +94,7 @@ func (c *controller) runBootstrap(ctx context.Context) error {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "zero-bootstrap")
 	})
-	return c.bootstrapConfig.Run(ctx, c.api, c.cfg.bootstrapConfigFileName)
+	return c.bootstrapConfig.Run(ctx, sdk.GlobalAPI.Load(), c.cfg.bootstrapConfigFileName)
 }
 
 func (c *controller) runPomeriumCore(ctx context.Context) error {
@@ -109,7 +106,7 @@ func (c *controller) runConnect(ctx context.Context) error {
 		return c.Str("service", "zero-connect")
 	})
 
-	return c.api.Connect(ctx)
+	return sdk.GlobalAPI.Load().Connect(ctx)
 }
 
 func (c *controller) runZeroControlLoop(ctx context.Context, waitFn func(context.Context) error) error {
@@ -131,7 +128,7 @@ func (c *controller) runReconciler(ctx context.Context) error {
 	})
 
 	return reconciler.Run(ctx,
-		reconciler.WithAPI(c.api),
+		reconciler.WithAPI(sdk.GlobalAPI.Load()),
 		reconciler.WithDataBrokerClient(c.GetDataBrokerServiceClient()),
 	)
 }
@@ -155,7 +152,7 @@ func (c *controller) runReporter(ctx context.Context) error {
 		return c.Str("service", "zero-reporter")
 	})
 
-	return c.api.Report(ctx,
+	return sdk.GlobalAPI.Load().Report(ctx,
 		reporter.WithCollectInterval(time.Hour),
 		reporter.WithMetrics(analytics.Metrics(c.GetDataBrokerServiceClient)...),
 	)

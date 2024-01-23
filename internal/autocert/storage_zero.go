@@ -14,7 +14,7 @@ import (
 
 type zeroStorage struct {
 	client cluster.ClientWithResponsesInterface
-	locker *locker
+	*locker
 }
 
 func newZeroStorage(client cluster.ClientWithResponsesInterface) *zeroStorage {

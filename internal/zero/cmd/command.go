@@ -16,6 +16,8 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/controller"
 )
 
+var APIToken string
+
 // Run runs the pomerium zero command.
 func Run(ctx context.Context, configFile string) error {
 	err := setupLogger()
