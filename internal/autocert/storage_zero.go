@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"strconv"
 
@@ -42,7 +43,7 @@ func (s *zeroStorage) Store(ctx context.Context, key string, value []byte) error
 	if err != nil {
 		return op.Failure(err)
 	}
-	if res.StatusCode() != http.StatusOK {
+	if res.StatusCode()/100 != 2 {
 		return op.Failure(fmt.Errorf("error storing key: %d %s", res.StatusCode(), res.Status()))
 	}
 
@@ -57,7 +58,9 @@ func (s *zeroStorage) Load(ctx context.Context, key string) ([]byte, error) {
 	if err != nil {
 		return nil, op.Failure(err)
 	}
-	if res.StatusCode() != http.StatusOK {
+	if res.StatusCode() == http.StatusNotFound {
+		return nil, fs.ErrNotExist
+	} else if res.StatusCode()/100 != 2 {
 		return nil, op.Failure(fmt.Errorf("error loading key: %d %s", res.StatusCode(), res.Status()))
 	}
 
@@ -72,7 +75,7 @@ func (s *zeroStorage) Delete(ctx context.Context, key string) error {
 	if err != nil {
 		return op.Failure(err)
 	}
-	if res.StatusCode() != http.StatusOK {
+	if res.StatusCode()/100 != 2 {
 		return op.Failure(fmt.Errorf("error deleting key: %d %s", res.StatusCode(), res.Status()))
 	}
 
@@ -88,7 +91,9 @@ func (s *zeroStorage) Exists(ctx context.Context, key string) bool {
 		_ = op.Failure(err)
 		return false
 	}
-	if res.StatusCode() != http.StatusOK {
+	if res.StatusCode() == http.StatusNotFound {
+		return false
+	} else if res.StatusCode()/100 != 2 {
 		_ = op.Failure(fmt.Errorf("error checking if key exists: %d %s", res.StatusCode(), res.Status()))
 		return false
 	}
@@ -107,7 +112,7 @@ func (s *zeroStorage) List(ctx context.Context, prefix string, recursive bool) (
 	if err != nil {
 		return nil, op.Failure(err)
 	}
-	if res.StatusCode() != http.StatusOK {
+	if res.StatusCode()/100 != 2 {
 		return nil, op.Failure(fmt.Errorf("error listing keys: %d %s", res.StatusCode(), res.Status()))
 	}
 
@@ -126,7 +131,7 @@ func (s *zeroStorage) Stat(ctx context.Context, key string) (certmagic.KeyInfo, 
 	if err != nil {
 		return certmagic.KeyInfo{}, op.Failure(err)
 	}
-	if res.StatusCode() != http.StatusOK {
+	if res.StatusCode()/100 != 2 {
 		return certmagic.KeyInfo{}, op.Failure(fmt.Errorf("error getting key info: %d %s", res.StatusCode(), res.Status()))
 	}
 
