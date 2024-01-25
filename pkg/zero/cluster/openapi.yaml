@@ -11,11 +11,32 @@ security:
   - bearerAuth: []
 
 paths:
+  /autocert/locks/{lockName}:
+    delete:
+      description: Release lock
+      operationId: autocertUnlock
+      parameters:
+        - $ref: "#/components/parameters/autocertFencingToken"
+        - $ref: "#/components/parameters/autocertLockName"
+      responses:
+        "204":
+          description: OK
+    post:
+      description: Acquire lock
+      operationId: autocertLock
+      parameters:
+        - $ref: "#/components/parameters/autocertFencingToken"
+        - $ref: "#/components/parameters/autocertLockName"
+      responses:
+        "204":
+          description: OK
+
   /autocert/files:
     get:
       description: List files
       operationId: autocertList
       parameters:
+        - $ref: "#/components/parameters/autocertFencingToken"
         - $ref: "#/components/parameters/autocertPrefix"
         - $ref: "#/components/parameters/autocertRecursive"
       responses:
@@ -32,6 +53,7 @@ paths:
       description: Delete a file
       operationId: autocertDelete
       parameters:
+        - $ref: "#/components/parameters/autocertFencingToken"
         - $ref: "#/components/parameters/autocertKey"
       responses:
         "204":
@@ -40,6 +62,7 @@ paths:
       description: Load a file
       operationId: autocertLoad
       parameters:
+        - $ref: "#/components/parameters/autocertFencingToken"
         - $ref: "#/components/parameters/autocertKey"
       responses:
         "200":
@@ -53,6 +76,7 @@ paths:
       description: Retrieve file info
       operationId: autocertStat
       parameters:
+        - $ref: "#/components/parameters/autocertFencingToken"
         - $ref: "#/components/parameters/autocertKey"
       responses:
         "204":
@@ -66,6 +90,7 @@ paths:
       description: Store a file
       operationId: autocertStore
       parameters:
+        - $ref: "#/components/parameters/autocertFencingToken"
         - $ref: "#/components/parameters/autocertKey"
       requestBody:
         required: true
@@ -223,6 +248,20 @@ paths:
 
 components:
   parameters:
+    autocertFencingToken:
+      name: fencingToken
+      in: query
+      description: autocert fencing token
+      required: true
+      schema:
+        type: string
+    autocertLockName:
+      name: lockName
+      in: path
+      description: autocert lock name
+      required: true
+      schema:
+        type: string
     autocertKey:
       name: key
       in: path

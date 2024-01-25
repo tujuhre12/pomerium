@@ -93,16 +93,22 @@ type ClientInterface interface {
 	AutocertList(ctx context.Context, params *AutocertListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// AutocertDelete request
-	AutocertDelete(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*http.Response, error)
+	AutocertDelete(ctx context.Context, key AutocertKey, params *AutocertDeleteParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// AutocertLoad request
-	AutocertLoad(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*http.Response, error)
+	AutocertLoad(ctx context.Context, key AutocertKey, params *AutocertLoadParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// AutocertStat request
-	AutocertStat(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*http.Response, error)
+	AutocertStat(ctx context.Context, key AutocertKey, params *AutocertStatParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// AutocertStoreWithBody request with any body
-	AutocertStoreWithBody(ctx context.Context, key AutocertKey, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	AutocertStoreWithBody(ctx context.Context, key AutocertKey, params *AutocertStoreParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AutocertUnlock request
+	AutocertUnlock(ctx context.Context, lockName AutocertLockName, params *AutocertUnlockParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AutocertLock request
+	AutocertLock(ctx context.Context, lockName AutocertLockName, params *AutocertLockParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetClusterBootstrapConfig request
 	GetClusterBootstrapConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -136,8 +142,8 @@ func (c *Client) AutocertList(ctx context.Context, params *AutocertListParams, r
 	return c.Client.Do(req)
 }
 
-func (c *Client) AutocertDelete(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewAutocertDeleteRequest(c.Server, key)
+func (c *Client) AutocertDelete(ctx context.Context, key AutocertKey, params *AutocertDeleteParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAutocertDeleteRequest(c.Server, key, params)
 	if err != nil {
 		return nil, err
 	}
@@ -148,8 +154,8 @@ func (c *Client) AutocertDelete(ctx context.Context, key AutocertKey, reqEditors
 	return c.Client.Do(req)
 }
 
-func (c *Client) AutocertLoad(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewAutocertLoadRequest(c.Server, key)
+func (c *Client) AutocertLoad(ctx context.Context, key AutocertKey, params *AutocertLoadParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAutocertLoadRequest(c.Server, key, params)
 	if err != nil {
 		return nil, err
 	}
@@ -160,8 +166,8 @@ func (c *Client) AutocertLoad(ctx context.Context, key AutocertKey, reqEditors .
 	return c.Client.Do(req)
 }
 
-func (c *Client) AutocertStat(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewAutocertStatRequest(c.Server, key)
+func (c *Client) AutocertStat(ctx context.Context, key AutocertKey, params *AutocertStatParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAutocertStatRequest(c.Server, key, params)
 	if err != nil {
 		return nil, err
 	}
@@ -172,8 +178,32 @@ func (c *Client) AutocertStat(ctx context.Context, key AutocertKey, reqEditors .
 	return c.Client.Do(req)
 }
 
-func (c *Client) AutocertStoreWithBody(ctx context.Context, key AutocertKey, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewAutocertStoreRequestWithBody(c.Server, key, contentType, body)
+func (c *Client) AutocertStoreWithBody(ctx context.Context, key AutocertKey, params *AutocertStoreParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAutocertStoreRequestWithBody(c.Server, key, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AutocertUnlock(ctx context.Context, lockName AutocertLockName, params *AutocertUnlockParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAutocertUnlockRequest(c.Server, lockName, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AutocertLock(ctx context.Context, lockName AutocertLockName, params *AutocertLockParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAutocertLockRequest(c.Server, lockName, params)
 	if err != nil {
 		return nil, err
 	}
@@ -290,6 +320,18 @@ func NewAutocertListRequest(server string, params *AutocertListParams) (*http.Re
 	if params != nil {
 		queryValues := queryURL.Query()
 
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "fencingToken", runtime.ParamLocationQuery, params.FencingToken); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
 		if params.Prefix != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "prefix", runtime.ParamLocationQuery, *params.Prefix); err != nil {
@@ -334,7 +376,7 @@ func NewAutocertListRequest(server string, params *AutocertListParams) (*http.Re
 }
 
 // NewAutocertDeleteRequest generates requests for AutocertDelete
-func NewAutocertDeleteRequest(server string, key AutocertKey) (*http.Request, error) {
+func NewAutocertDeleteRequest(server string, key AutocertKey, params *AutocertDeleteParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -357,6 +399,24 @@ func NewAutocertDeleteRequest(server string, key AutocertKey) (*http.Request, er
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "fencingToken", runtime.ParamLocationQuery, params.FencingToken); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
@@ -368,7 +428,7 @@ func NewAutocertDeleteRequest(server string, key AutocertKey) (*http.Request, er
 }
 
 // NewAutocertLoadRequest generates requests for AutocertLoad
-func NewAutocertLoadRequest(server string, key AutocertKey) (*http.Request, error) {
+func NewAutocertLoadRequest(server string, key AutocertKey, params *AutocertLoadParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -391,6 +451,24 @@ func NewAutocertLoadRequest(server string, key AutocertKey) (*http.Request, erro
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "fencingToken", runtime.ParamLocationQuery, params.FencingToken); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -402,7 +480,7 @@ func NewAutocertLoadRequest(server string, key AutocertKey) (*http.Request, erro
 }
 
 // NewAutocertStatRequest generates requests for AutocertStat
-func NewAutocertStatRequest(server string, key AutocertKey) (*http.Request, error) {
+func NewAutocertStatRequest(server string, key AutocertKey, params *AutocertStatParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -425,6 +503,24 @@ func NewAutocertStatRequest(server string, key AutocertKey) (*http.Request, erro
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "fencingToken", runtime.ParamLocationQuery, params.FencingToken); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("HEAD", queryURL.String(), nil)
@@ -436,7 +532,7 @@ func NewAutocertStatRequest(server string, key AutocertKey) (*http.Request, erro
 }
 
 // NewAutocertStoreRequestWithBody generates requests for AutocertStore with any type of body
-func NewAutocertStoreRequestWithBody(server string, key AutocertKey, contentType string, body io.Reader) (*http.Request, error) {
+func NewAutocertStoreRequestWithBody(server string, key AutocertKey, params *AutocertStoreParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -461,12 +557,134 @@ func NewAutocertStoreRequestWithBody(server string, key AutocertKey, contentType
 		return nil, err
 	}
 
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "fencingToken", runtime.ParamLocationQuery, params.FencingToken); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
 	req, err := http.NewRequest("PUT", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewAutocertUnlockRequest generates requests for AutocertUnlock
+func NewAutocertUnlockRequest(server string, lockName AutocertLockName, params *AutocertUnlockParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "lockName", runtime.ParamLocationPath, lockName)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/autocert/locks/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "fencingToken", runtime.ParamLocationQuery, params.FencingToken); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAutocertLockRequest generates requests for AutocertLock
+func NewAutocertLockRequest(server string, lockName AutocertLockName, params *AutocertLockParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "lockName", runtime.ParamLocationPath, lockName)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/autocert/locks/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "fencingToken", runtime.ParamLocationQuery, params.FencingToken); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -693,16 +911,22 @@ type ClientWithResponsesInterface interface {
 	AutocertListWithResponse(ctx context.Context, params *AutocertListParams, reqEditors ...RequestEditorFn) (*AutocertListResp, error)
 
 	// AutocertDeleteWithResponse request
-	AutocertDeleteWithResponse(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*AutocertDeleteResp, error)
+	AutocertDeleteWithResponse(ctx context.Context, key AutocertKey, params *AutocertDeleteParams, reqEditors ...RequestEditorFn) (*AutocertDeleteResp, error)
 
 	// AutocertLoadWithResponse request
-	AutocertLoadWithResponse(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*AutocertLoadResp, error)
+	AutocertLoadWithResponse(ctx context.Context, key AutocertKey, params *AutocertLoadParams, reqEditors ...RequestEditorFn) (*AutocertLoadResp, error)
 
 	// AutocertStatWithResponse request
-	AutocertStatWithResponse(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*AutocertStatResp, error)
+	AutocertStatWithResponse(ctx context.Context, key AutocertKey, params *AutocertStatParams, reqEditors ...RequestEditorFn) (*AutocertStatResp, error)
 
 	// AutocertStoreWithBodyWithResponse request with any body
-	AutocertStoreWithBodyWithResponse(ctx context.Context, key AutocertKey, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AutocertStoreResp, error)
+	AutocertStoreWithBodyWithResponse(ctx context.Context, key AutocertKey, params *AutocertStoreParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AutocertStoreResp, error)
+
+	// AutocertUnlockWithResponse request
+	AutocertUnlockWithResponse(ctx context.Context, lockName AutocertLockName, params *AutocertUnlockParams, reqEditors ...RequestEditorFn) (*AutocertUnlockResp, error)
+
+	// AutocertLockWithResponse request
+	AutocertLockWithResponse(ctx context.Context, lockName AutocertLockName, params *AutocertLockParams, reqEditors ...RequestEditorFn) (*AutocertLockResp, error)
 
 	// GetClusterBootstrapConfigWithResponse request
 	GetClusterBootstrapConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetClusterBootstrapConfigResp, error)
@@ -824,6 +1048,48 @@ func (r AutocertStoreResp) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r AutocertStoreResp) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AutocertUnlockResp struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r AutocertUnlockResp) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AutocertUnlockResp) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AutocertLockResp struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r AutocertLockResp) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AutocertLockResp) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -960,8 +1226,8 @@ func (c *ClientWithResponses) AutocertListWithResponse(ctx context.Context, para
 }
 
 // AutocertDeleteWithResponse request returning *AutocertDeleteResp
-func (c *ClientWithResponses) AutocertDeleteWithResponse(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*AutocertDeleteResp, error) {
-	rsp, err := c.AutocertDelete(ctx, key, reqEditors...)
+func (c *ClientWithResponses) AutocertDeleteWithResponse(ctx context.Context, key AutocertKey, params *AutocertDeleteParams, reqEditors ...RequestEditorFn) (*AutocertDeleteResp, error) {
+	rsp, err := c.AutocertDelete(ctx, key, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -969,8 +1235,8 @@ func (c *ClientWithResponses) AutocertDeleteWithResponse(ctx context.Context, ke
 }
 
 // AutocertLoadWithResponse request returning *AutocertLoadResp
-func (c *ClientWithResponses) AutocertLoadWithResponse(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*AutocertLoadResp, error) {
-	rsp, err := c.AutocertLoad(ctx, key, reqEditors...)
+func (c *ClientWithResponses) AutocertLoadWithResponse(ctx context.Context, key AutocertKey, params *AutocertLoadParams, reqEditors ...RequestEditorFn) (*AutocertLoadResp, error) {
+	rsp, err := c.AutocertLoad(ctx, key, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -978,8 +1244,8 @@ func (c *ClientWithResponses) AutocertLoadWithResponse(ctx context.Context, key 
 }
 
 // AutocertStatWithResponse request returning *AutocertStatResp
-func (c *ClientWithResponses) AutocertStatWithResponse(ctx context.Context, key AutocertKey, reqEditors ...RequestEditorFn) (*AutocertStatResp, error) {
-	rsp, err := c.AutocertStat(ctx, key, reqEditors...)
+func (c *ClientWithResponses) AutocertStatWithResponse(ctx context.Context, key AutocertKey, params *AutocertStatParams, reqEditors ...RequestEditorFn) (*AutocertStatResp, error) {
+	rsp, err := c.AutocertStat(ctx, key, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -987,12 +1253,30 @@ func (c *ClientWithResponses) AutocertStatWithResponse(ctx context.Context, key 
 }
 
 // AutocertStoreWithBodyWithResponse request with arbitrary body returning *AutocertStoreResp
-func (c *ClientWithResponses) AutocertStoreWithBodyWithResponse(ctx context.Context, key AutocertKey, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AutocertStoreResp, error) {
-	rsp, err := c.AutocertStoreWithBody(ctx, key, contentType, body, reqEditors...)
+func (c *ClientWithResponses) AutocertStoreWithBodyWithResponse(ctx context.Context, key AutocertKey, params *AutocertStoreParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AutocertStoreResp, error) {
+	rsp, err := c.AutocertStoreWithBody(ctx, key, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseAutocertStoreResp(rsp)
+}
+
+// AutocertUnlockWithResponse request returning *AutocertUnlockResp
+func (c *ClientWithResponses) AutocertUnlockWithResponse(ctx context.Context, lockName AutocertLockName, params *AutocertUnlockParams, reqEditors ...RequestEditorFn) (*AutocertUnlockResp, error) {
+	rsp, err := c.AutocertUnlock(ctx, lockName, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAutocertUnlockResp(rsp)
+}
+
+// AutocertLockWithResponse request returning *AutocertLockResp
+func (c *ClientWithResponses) AutocertLockWithResponse(ctx context.Context, lockName AutocertLockName, params *AutocertLockParams, reqEditors ...RequestEditorFn) (*AutocertLockResp, error) {
+	rsp, err := c.AutocertLock(ctx, lockName, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAutocertLockResp(rsp)
 }
 
 // GetClusterBootstrapConfigWithResponse request returning *GetClusterBootstrapConfigResp
@@ -1139,6 +1423,38 @@ func ParseAutocertStoreResp(rsp *http.Response) (*AutocertStoreResp, error) {
 	}
 
 	response := &AutocertStoreResp{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseAutocertUnlockResp parses an HTTP response from a AutocertUnlockWithResponse call
+func ParseAutocertUnlockResp(rsp *http.Response) (*AutocertUnlockResp, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AutocertUnlockResp{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseAutocertLockResp parses an HTTP response from a AutocertLockWithResponse call
+func ParseAutocertLockResp(rsp *http.Response) (*AutocertLockResp, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AutocertLockResp{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

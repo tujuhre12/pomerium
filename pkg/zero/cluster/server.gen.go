@@ -22,16 +22,22 @@ type ServerInterface interface {
 	AutocertList(w http.ResponseWriter, r *http.Request, params AutocertListParams)
 
 	// (DELETE /autocert/files/{key})
-	AutocertDelete(w http.ResponseWriter, r *http.Request, key AutocertKey)
+	AutocertDelete(w http.ResponseWriter, r *http.Request, key AutocertKey, params AutocertDeleteParams)
 
 	// (GET /autocert/files/{key})
-	AutocertLoad(w http.ResponseWriter, r *http.Request, key AutocertKey)
+	AutocertLoad(w http.ResponseWriter, r *http.Request, key AutocertKey, params AutocertLoadParams)
 
 	// (HEAD /autocert/files/{key})
-	AutocertStat(w http.ResponseWriter, r *http.Request, key AutocertKey)
+	AutocertStat(w http.ResponseWriter, r *http.Request, key AutocertKey, params AutocertStatParams)
 
 	// (PUT /autocert/files/{key})
-	AutocertStore(w http.ResponseWriter, r *http.Request, key AutocertKey)
+	AutocertStore(w http.ResponseWriter, r *http.Request, key AutocertKey, params AutocertStoreParams)
+
+	// (DELETE /autocert/locks/{lockName})
+	AutocertUnlock(w http.ResponseWriter, r *http.Request, lockName AutocertLockName, params AutocertUnlockParams)
+
+	// (POST /autocert/locks/{lockName})
+	AutocertLock(w http.ResponseWriter, r *http.Request, lockName AutocertLockName, params AutocertLockParams)
 
 	// (GET /bootstrap)
 	GetClusterBootstrapConfig(w http.ResponseWriter, r *http.Request)
@@ -59,22 +65,32 @@ func (_ Unimplemented) AutocertList(w http.ResponseWriter, r *http.Request, para
 }
 
 // (DELETE /autocert/files/{key})
-func (_ Unimplemented) AutocertDelete(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+func (_ Unimplemented) AutocertDelete(w http.ResponseWriter, r *http.Request, key AutocertKey, params AutocertDeleteParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // (GET /autocert/files/{key})
-func (_ Unimplemented) AutocertLoad(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+func (_ Unimplemented) AutocertLoad(w http.ResponseWriter, r *http.Request, key AutocertKey, params AutocertLoadParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // (HEAD /autocert/files/{key})
-func (_ Unimplemented) AutocertStat(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+func (_ Unimplemented) AutocertStat(w http.ResponseWriter, r *http.Request, key AutocertKey, params AutocertStatParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // (PUT /autocert/files/{key})
-func (_ Unimplemented) AutocertStore(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+func (_ Unimplemented) AutocertStore(w http.ResponseWriter, r *http.Request, key AutocertKey, params AutocertStoreParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (DELETE /autocert/locks/{lockName})
+func (_ Unimplemented) AutocertUnlock(w http.ResponseWriter, r *http.Request, lockName AutocertLockName, params AutocertUnlockParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /autocert/locks/{lockName})
+func (_ Unimplemented) AutocertLock(w http.ResponseWriter, r *http.Request, lockName AutocertLockName, params AutocertLockParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -123,6 +139,21 @@ func (siw *ServerInterfaceWrapper) AutocertList(w http.ResponseWriter, r *http.R
 	// Parameter object where we will unmarshal all parameters from the context
 	var params AutocertListParams
 
+	// ------------- Required query parameter "fencingToken" -------------
+
+	if paramValue := r.URL.Query().Get("fencingToken"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "fencingToken"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "fencingToken", r.URL.Query(), &params.FencingToken)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fencingToken", Err: err})
+		return
+	}
+
 	// ------------- Optional query parameter "prefix" -------------
 
 	err = runtime.BindQueryParameter("form", true, false, "prefix", r.URL.Query(), &params.Prefix)
@@ -167,8 +198,26 @@ func (siw *ServerInterfaceWrapper) AutocertDelete(w http.ResponseWriter, r *http
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AutocertDeleteParams
+
+	// ------------- Required query parameter "fencingToken" -------------
+
+	if paramValue := r.URL.Query().Get("fencingToken"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "fencingToken"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "fencingToken", r.URL.Query(), &params.FencingToken)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fencingToken", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AutocertDelete(w, r, key)
+		siw.Handler.AutocertDelete(w, r, key, params)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -195,8 +244,26 @@ func (siw *ServerInterfaceWrapper) AutocertLoad(w http.ResponseWriter, r *http.R
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AutocertLoadParams
+
+	// ------------- Required query parameter "fencingToken" -------------
+
+	if paramValue := r.URL.Query().Get("fencingToken"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "fencingToken"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "fencingToken", r.URL.Query(), &params.FencingToken)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fencingToken", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AutocertLoad(w, r, key)
+		siw.Handler.AutocertLoad(w, r, key, params)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -223,8 +290,26 @@ func (siw *ServerInterfaceWrapper) AutocertStat(w http.ResponseWriter, r *http.R
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AutocertStatParams
+
+	// ------------- Required query parameter "fencingToken" -------------
+
+	if paramValue := r.URL.Query().Get("fencingToken"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "fencingToken"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "fencingToken", r.URL.Query(), &params.FencingToken)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fencingToken", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AutocertStat(w, r, key)
+		siw.Handler.AutocertStat(w, r, key, params)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -251,8 +336,118 @@ func (siw *ServerInterfaceWrapper) AutocertStore(w http.ResponseWriter, r *http.
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AutocertStoreParams
+
+	// ------------- Required query parameter "fencingToken" -------------
+
+	if paramValue := r.URL.Query().Get("fencingToken"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "fencingToken"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "fencingToken", r.URL.Query(), &params.FencingToken)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fencingToken", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AutocertStore(w, r, key)
+		siw.Handler.AutocertStore(w, r, key, params)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// AutocertUnlock operation middleware
+func (siw *ServerInterfaceWrapper) AutocertUnlock(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "lockName" -------------
+	var lockName AutocertLockName
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "lockName", runtime.ParamLocationPath, chi.URLParam(r, "lockName"), &lockName)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "lockName", Err: err})
+		return
+	}
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AutocertUnlockParams
+
+	// ------------- Required query parameter "fencingToken" -------------
+
+	if paramValue := r.URL.Query().Get("fencingToken"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "fencingToken"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "fencingToken", r.URL.Query(), &params.FencingToken)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fencingToken", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AutocertUnlock(w, r, lockName, params)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// AutocertLock operation middleware
+func (siw *ServerInterfaceWrapper) AutocertLock(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "lockName" -------------
+	var lockName AutocertLockName
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "lockName", runtime.ParamLocationPath, chi.URLParam(r, "lockName"), &lockName)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "lockName", Err: err})
+		return
+	}
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AutocertLockParams
+
+	// ------------- Required query parameter "fencingToken" -------------
+
+	if paramValue := r.URL.Query().Get("fencingToken"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "fencingToken"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "fencingToken", r.URL.Query(), &params.FencingToken)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fencingToken", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AutocertLock(w, r, lockName, params)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -496,6 +691,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Put(options.BaseURL+"/autocert/files/{key}", wrapper.AutocertStore)
 	})
 	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/autocert/locks/{lockName}", wrapper.AutocertUnlock)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/autocert/locks/{lockName}", wrapper.AutocertLock)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/bootstrap", wrapper.GetClusterBootstrapConfig)
 	})
 	r.Group(func(r chi.Router) {
@@ -532,7 +733,8 @@ func (response AutocertList200JSONResponse) VisitAutocertListResponse(w http.Res
 }
 
 type AutocertDeleteRequestObject struct {
-	Key AutocertKey `json:"key"`
+	Key    AutocertKey `json:"key"`
+	Params AutocertDeleteParams
 }
 
 type AutocertDeleteResponseObject interface {
@@ -548,7 +750,8 @@ func (response AutocertDelete204Response) VisitAutocertDeleteResponse(w http.Res
 }
 
 type AutocertLoadRequestObject struct {
-	Key AutocertKey `json:"key"`
+	Key    AutocertKey `json:"key"`
+	Params AutocertLoadParams
 }
 
 type AutocertLoadResponseObject interface {
@@ -575,24 +778,32 @@ func (response AutocertLoad200ApplicationoctetStreamResponse) VisitAutocertLoadR
 }
 
 type AutocertStatRequestObject struct {
-	Key AutocertKey `json:"key"`
+	Key    AutocertKey `json:"key"`
+	Params AutocertStatParams
 }
 
 type AutocertStatResponseObject interface {
 	VisitAutocertStatResponse(w http.ResponseWriter) error
 }
 
+type AutocertStat204ResponseHeaders struct {
+	XIsTerminal bool
+}
+
 type AutocertStat204Response struct {
+	Headers AutocertStat204ResponseHeaders
 }
 
 func (response AutocertStat204Response) VisitAutocertStatResponse(w http.ResponseWriter) error {
+	w.Header().Set("X-Is-Terminal", fmt.Sprint(response.Headers.XIsTerminal))
 	w.WriteHeader(204)
 	return nil
 }
 
 type AutocertStoreRequestObject struct {
-	Key  AutocertKey `json:"key"`
-	Body io.Reader
+	Key    AutocertKey `json:"key"`
+	Params AutocertStoreParams
+	Body   io.Reader
 }
 
 type AutocertStoreResponseObject interface {
@@ -616,6 +827,40 @@ func (response AutocertStore200ApplicationoctetStreamResponse) VisitAutocertStor
 	}
 	_, err := io.Copy(w, response.Body)
 	return err
+}
+
+type AutocertUnlockRequestObject struct {
+	LockName AutocertLockName `json:"lockName"`
+	Params   AutocertUnlockParams
+}
+
+type AutocertUnlockResponseObject interface {
+	VisitAutocertUnlockResponse(w http.ResponseWriter) error
+}
+
+type AutocertUnlock204Response struct {
+}
+
+func (response AutocertUnlock204Response) VisitAutocertUnlockResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type AutocertLockRequestObject struct {
+	LockName AutocertLockName `json:"lockName"`
+	Params   AutocertLockParams
+}
+
+type AutocertLockResponseObject interface {
+	VisitAutocertLockResponse(w http.ResponseWriter) error
+}
+
+type AutocertLock204Response struct {
+}
+
+func (response AutocertLock204Response) VisitAutocertLockResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
 }
 
 type GetClusterBootstrapConfigRequestObject struct {
@@ -818,6 +1063,12 @@ type StrictServerInterface interface {
 	// (PUT /autocert/files/{key})
 	AutocertStore(ctx context.Context, request AutocertStoreRequestObject) (AutocertStoreResponseObject, error)
 
+	// (DELETE /autocert/locks/{lockName})
+	AutocertUnlock(ctx context.Context, request AutocertUnlockRequestObject) (AutocertUnlockResponseObject, error)
+
+	// (POST /autocert/locks/{lockName})
+	AutocertLock(ctx context.Context, request AutocertLockRequestObject) (AutocertLockResponseObject, error)
+
 	// (GET /bootstrap)
 	GetClusterBootstrapConfig(ctx context.Context, request GetClusterBootstrapConfigRequestObject) (GetClusterBootstrapConfigResponseObject, error)
 
@@ -890,10 +1141,11 @@ func (sh *strictHandler) AutocertList(w http.ResponseWriter, r *http.Request, pa
 }
 
 // AutocertDelete operation middleware
-func (sh *strictHandler) AutocertDelete(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+func (sh *strictHandler) AutocertDelete(w http.ResponseWriter, r *http.Request, key AutocertKey, params AutocertDeleteParams) {
 	var request AutocertDeleteRequestObject
 
 	request.Key = key
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.AutocertDelete(ctx, request.(AutocertDeleteRequestObject))
@@ -916,10 +1168,11 @@ func (sh *strictHandler) AutocertDelete(w http.ResponseWriter, r *http.Request, 
 }
 
 // AutocertLoad operation middleware
-func (sh *strictHandler) AutocertLoad(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+func (sh *strictHandler) AutocertLoad(w http.ResponseWriter, r *http.Request, key AutocertKey, params AutocertLoadParams) {
 	var request AutocertLoadRequestObject
 
 	request.Key = key
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.AutocertLoad(ctx, request.(AutocertLoadRequestObject))
@@ -942,10 +1195,11 @@ func (sh *strictHandler) AutocertLoad(w http.ResponseWriter, r *http.Request, ke
 }
 
 // AutocertStat operation middleware
-func (sh *strictHandler) AutocertStat(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+func (sh *strictHandler) AutocertStat(w http.ResponseWriter, r *http.Request, key AutocertKey, params AutocertStatParams) {
 	var request AutocertStatRequestObject
 
 	request.Key = key
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.AutocertStat(ctx, request.(AutocertStatRequestObject))
@@ -968,10 +1222,11 @@ func (sh *strictHandler) AutocertStat(w http.ResponseWriter, r *http.Request, ke
 }
 
 // AutocertStore operation middleware
-func (sh *strictHandler) AutocertStore(w http.ResponseWriter, r *http.Request, key AutocertKey) {
+func (sh *strictHandler) AutocertStore(w http.ResponseWriter, r *http.Request, key AutocertKey, params AutocertStoreParams) {
 	var request AutocertStoreRequestObject
 
 	request.Key = key
+	request.Params = params
 
 	request.Body = r.Body
 
@@ -988,6 +1243,60 @@ func (sh *strictHandler) AutocertStore(w http.ResponseWriter, r *http.Request, k
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(AutocertStoreResponseObject); ok {
 		if err := validResponse.VisitAutocertStoreResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AutocertUnlock operation middleware
+func (sh *strictHandler) AutocertUnlock(w http.ResponseWriter, r *http.Request, lockName AutocertLockName, params AutocertUnlockParams) {
+	var request AutocertUnlockRequestObject
+
+	request.LockName = lockName
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AutocertUnlock(ctx, request.(AutocertUnlockRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AutocertUnlock")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AutocertUnlockResponseObject); ok {
+		if err := validResponse.VisitAutocertUnlockResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AutocertLock operation middleware
+func (sh *strictHandler) AutocertLock(w http.ResponseWriter, r *http.Request, lockName AutocertLockName, params AutocertLockParams) {
+	var request AutocertLockRequestObject
+
+	request.LockName = lockName
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AutocertLock(ctx, request.(AutocertLockRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AutocertLock")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AutocertLockResponseObject); ok {
+		if err := validResponse.VisitAutocertLockResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

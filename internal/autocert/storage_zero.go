@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/caddyserver/certmagic"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -17,29 +18,61 @@ import (
 )
 
 type zeroStorage struct {
-	client cluster.ClientWithResponsesInterface
-	*locker
-	telemetry telemetry.Component
+	client       cluster.ClientWithResponsesInterface
+	telemetry    telemetry.Component
+	fencingToken string
 }
 
 func newZeroStorage(client cluster.ClientWithResponsesInterface) *zeroStorage {
 	s := &zeroStorage{
-		client:    client,
-		telemetry: *telemetry.NewComponent(zerolog.InfoLevel, "autocert", "zero"),
-	}
-	s.locker = &locker{
-		store:  s.Store,
-		load:   s.Load,
-		delete: s.Delete,
+		client:       client,
+		telemetry:    *telemetry.NewComponent(zerolog.InfoLevel, "autocert", "zero"),
+		fencingToken: uuid.NewString(),
 	}
 	return s
+}
+
+func (s *zeroStorage) Lock(ctx context.Context, name string) error {
+	ctx, op := s.telemetry.Start(ctx, "Lock", attribute.String("name", name))
+	defer op.Complete()
+
+	res, err := s.client.AutocertLockWithResponse(ctx, name, &cluster.AutocertLockParams{
+		FencingToken: s.fencingToken,
+	})
+	if err != nil {
+		return op.Failure(err)
+	}
+	if res.StatusCode()/100 != 2 {
+		return op.Failure(fmt.Errorf("error acquiring lock: %d %s", res.StatusCode(), res.Status()))
+	}
+
+	return nil
+}
+
+func (s *zeroStorage) Unlock(ctx context.Context, name string) error {
+	ctx, op := s.telemetry.Start(ctx, "Unlock", attribute.String("name", name))
+	defer op.Complete()
+
+	res, err := s.client.AutocertUnlockWithResponse(ctx, name, &cluster.AutocertUnlockParams{
+		FencingToken: s.fencingToken,
+	})
+	if err != nil {
+		return op.Failure(err)
+	}
+	if res.StatusCode()/100 != 2 {
+		return op.Failure(fmt.Errorf("error releasing lock: %d %s", res.StatusCode(), res.Status()))
+	}
+
+	return nil
 }
 
 func (s *zeroStorage) Store(ctx context.Context, key string, value []byte) error {
 	ctx, op := s.telemetry.Start(ctx, "Store", attribute.String("key", key))
 	defer op.Complete()
 
-	res, err := s.client.AutocertStoreWithBodyWithResponse(ctx, key, "application/octet-stream", bytes.NewReader(value))
+	res, err := s.client.AutocertStoreWithBodyWithResponse(ctx, key, &cluster.AutocertStoreParams{
+		FencingToken: s.fencingToken,
+	}, "application/octet-stream", bytes.NewReader(value))
 	if err != nil {
 		return op.Failure(err)
 	}
@@ -54,7 +87,9 @@ func (s *zeroStorage) Load(ctx context.Context, key string) ([]byte, error) {
 	ctx, op := s.telemetry.Start(ctx, "Load", attribute.String("key", key))
 	defer op.Complete()
 
-	res, err := s.client.AutocertLoadWithResponse(ctx, key)
+	res, err := s.client.AutocertLoadWithResponse(ctx, key, &cluster.AutocertLoadParams{
+		FencingToken: s.fencingToken,
+	})
 	if err != nil {
 		return nil, op.Failure(err)
 	}
@@ -71,7 +106,9 @@ func (s *zeroStorage) Delete(ctx context.Context, key string) error {
 	ctx, op := s.telemetry.Start(ctx, "Delete", attribute.String("key", key))
 	defer op.Complete()
 
-	res, err := s.client.AutocertDeleteWithResponse(ctx, key)
+	res, err := s.client.AutocertDeleteWithResponse(ctx, key, &cluster.AutocertDeleteParams{
+		FencingToken: s.fencingToken,
+	})
 	if err != nil {
 		return op.Failure(err)
 	}
@@ -86,7 +123,9 @@ func (s *zeroStorage) Exists(ctx context.Context, key string) bool {
 	ctx, op := s.telemetry.Start(ctx, "Exists", attribute.String("key", key))
 	defer op.Complete()
 
-	res, err := s.client.AutocertStatWithResponse(ctx, key)
+	res, err := s.client.AutocertStatWithResponse(ctx, key, &cluster.AutocertStatParams{
+		FencingToken: s.fencingToken,
+	})
 	if err != nil {
 		_ = op.Failure(err)
 		return false
@@ -106,8 +145,9 @@ func (s *zeroStorage) List(ctx context.Context, prefix string, recursive bool) (
 	defer op.Complete()
 
 	res, err := s.client.AutocertListWithResponse(ctx, &cluster.AutocertListParams{
-		Prefix:    &prefix,
-		Recursive: &recursive,
+		FencingToken: s.fencingToken,
+		Prefix:       &prefix,
+		Recursive:    &recursive,
 	})
 	if err != nil {
 		return nil, op.Failure(err)
@@ -127,7 +167,9 @@ func (s *zeroStorage) Stat(ctx context.Context, key string) (certmagic.KeyInfo, 
 	ctx, op := s.telemetry.Start(ctx, "Stat", attribute.String("key", key))
 	defer op.Complete()
 
-	res, err := s.client.AutocertStatWithResponse(ctx, key)
+	res, err := s.client.AutocertStatWithResponse(ctx, key, &cluster.AutocertStatParams{
+		FencingToken: s.fencingToken,
+	})
 	if err != nil {
 		return certmagic.KeyInfo{}, op.Failure(err)
 	}

@@ -89,8 +89,14 @@ type GetBundlesResponse struct {
 	Bundles []Bundle `json:"bundles"`
 }
 
+// AutocertFencingToken defines model for autocertFencingToken.
+type AutocertFencingToken = string
+
 // AutocertKey defines model for autocertKey.
 type AutocertKey = string
+
+// AutocertLockName defines model for autocertLockName.
+type AutocertLockName = string
 
 // AutocertPrefix defines model for autocertPrefix.
 type AutocertPrefix = string
@@ -103,11 +109,50 @@ type BundleId = string
 
 // AutocertListParams defines parameters for AutocertList.
 type AutocertListParams struct {
+	// FencingToken autocert fencing token
+	FencingToken AutocertFencingToken `form:"fencingToken" json:"fencingToken"`
+
 	// Prefix autocert file list prefix
 	Prefix *AutocertPrefix `form:"prefix,omitempty" json:"prefix,omitempty"`
 
 	// Recursive autocert file list recursively
 	Recursive *AutocertRecursive `form:"recursive,omitempty" json:"recursive,omitempty"`
+}
+
+// AutocertDeleteParams defines parameters for AutocertDelete.
+type AutocertDeleteParams struct {
+	// FencingToken autocert fencing token
+	FencingToken AutocertFencingToken `form:"fencingToken" json:"fencingToken"`
+}
+
+// AutocertLoadParams defines parameters for AutocertLoad.
+type AutocertLoadParams struct {
+	// FencingToken autocert fencing token
+	FencingToken AutocertFencingToken `form:"fencingToken" json:"fencingToken"`
+}
+
+// AutocertStatParams defines parameters for AutocertStat.
+type AutocertStatParams struct {
+	// FencingToken autocert fencing token
+	FencingToken AutocertFencingToken `form:"fencingToken" json:"fencingToken"`
+}
+
+// AutocertStoreParams defines parameters for AutocertStore.
+type AutocertStoreParams struct {
+	// FencingToken autocert fencing token
+	FencingToken AutocertFencingToken `form:"fencingToken" json:"fencingToken"`
+}
+
+// AutocertUnlockParams defines parameters for AutocertUnlock.
+type AutocertUnlockParams struct {
+	// FencingToken autocert fencing token
+	FencingToken AutocertFencingToken `form:"fencingToken" json:"fencingToken"`
+}
+
+// AutocertLockParams defines parameters for AutocertLock.
+type AutocertLockParams struct {
+	// FencingToken autocert fencing token
+	FencingToken AutocertFencingToken `form:"fencingToken" json:"fencingToken"`
 }
 
 // ReportClusterResourceBundleStatusJSONRequestBody defines body for ReportClusterResourceBundleStatus for application/json ContentType.
