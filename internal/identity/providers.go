@@ -36,39 +36,41 @@ type Authenticator interface {
 	SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, authenticateSignedOutURL, redirectToURL string) error
 }
 
+type AuthenticatorConstructor func(context.Context, *oauth.Options) (Authenticator, error)
+
+var registry = map[string]AuthenticatorConstructor{}
+
+// RegisterAuthenticator registers a new Authenticator.
+func RegisterAuthenticator(name string, ctor AuthenticatorConstructor) {
+	registry[name] = ctor
+}
+
+func init() {
+	RegisterAuthenticator(apple.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return apple.New(ctx, o) })
+	RegisterAuthenticator(auth0.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return auth0.New(ctx, o) })
+	RegisterAuthenticator(azure.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return azure.New(ctx, o) })
+	RegisterAuthenticator(cognito.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return cognito.New(ctx, o) })
+	RegisterAuthenticator(github.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return github.New(ctx, o) })
+	RegisterAuthenticator(gitlab.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return gitlab.New(ctx, o) })
+	RegisterAuthenticator(google.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return google.New(ctx, o) })
+	RegisterAuthenticator(oidc.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return oidc.New(ctx, o) })
+	RegisterAuthenticator(okta.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return okta.New(ctx, o) })
+	RegisterAuthenticator(onelogin.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return onelogin.New(ctx, o) })
+	RegisterAuthenticator(ping.Name, func(ctx context.Context, o *oauth.Options) (Authenticator, error) { return ping.New(ctx, o) })
+}
+
 // NewAuthenticator returns a new identity provider based on its name.
 func NewAuthenticator(o oauth.Options) (a Authenticator, err error) {
 	ctx := context.Background()
-	switch o.ProviderName {
-	case apple.Name:
-		a, err = apple.New(ctx, &o)
-	case auth0.Name:
-		a, err = auth0.New(ctx, &o)
-	case azure.Name:
-		a, err = azure.New(ctx, &o)
-	case gitlab.Name:
-		a, err = gitlab.New(ctx, &o)
-	case github.Name:
-		a, err = github.New(ctx, &o)
-	case google.Name:
-		a, err = google.New(ctx, &o)
-	case oidc.Name:
-		a, err = oidc.New(ctx, &o)
-	case okta.Name:
-		a, err = okta.New(ctx, &o)
-	case onelogin.Name:
-		a, err = onelogin.New(ctx, &o)
-	case ping.Name:
-		a, err = ping.New(ctx, &o)
-	case cognito.Name:
-		a, err = cognito.New(ctx, &o)
-	case "":
+
+	if o.ProviderName == "" {
 		return nil, fmt.Errorf("identity: provider is not defined")
-	default:
+	}
+
+	ctor, ok := registry[o.ProviderName]
+	if !ok {
 		return nil, fmt.Errorf("identity: unknown provider: %s", o.ProviderName)
 	}
-	if err != nil {
-		return nil, err
-	}
-	return a, nil
+
+	return ctor(ctx, &o)
 }
