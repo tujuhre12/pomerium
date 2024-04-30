@@ -24,10 +24,13 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity/oidc/ping"
 )
 
+// State is the identity state.
+type State = identity.State
+
 // Authenticator is an interface representing the ability to authenticate with an identity provider.
 type Authenticator interface {
-	Authenticate(context.Context, string, identity.State) (*oauth2.Token, error)
-	Refresh(context.Context, *oauth2.Token, identity.State) (*oauth2.Token, error)
+	Authenticate(context.Context, string, State) (*oauth2.Token, error)
+	Refresh(context.Context, *oauth2.Token, State) (*oauth2.Token, error)
 	Revoke(context.Context, *oauth2.Token) error
 	Name() string
 	UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error
