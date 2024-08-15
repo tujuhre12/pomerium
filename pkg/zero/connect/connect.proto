@@ -50,18 +50,6 @@ message TelemetryRequest {
   optional PomeriumMetricsRequest pomerium_metrics = 3;
 }
 
-// ReportUsageRequest is used to report usage by a user.
-message ReportUsageRequest {
-  message User {
-    string id = 1;
-    string display_name = 2;
-    string email = 3;
-    google.protobuf.Timestamp accessed_at = 4;
-  }
-
-  repeated User users = 1;
-}
-
 // SessionAnalyticsRequest is used to request current MAU/DAU data
 message SessionAnalyticsRequest {}
 
@@ -82,8 +70,6 @@ message PomeriumMetricsRequest {
 // Connect service is used to maintain a persistent connection between the
 // Pomerium Core and Zero Cloud and receive messages from the cloud.
 service Connect {
-  // ReportUsage reports usage.
-  rpc ReportUsage(ReportUsageRequest) returns (google.protobuf.Empty);
   // Subscribe is used to send a stream of messages from the Zero Cloud to the
   // Pomerium Core in managed mode.
   rpc Subscribe(SubscribeRequest) returns (stream Message);

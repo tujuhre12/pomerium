@@ -11,7 +11,6 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -20,8 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Connect_ReportUsage_FullMethodName = "/pomerium.zero.Connect/ReportUsage"
-	Connect_Subscribe_FullMethodName   = "/pomerium.zero.Connect/Subscribe"
+	Connect_Subscribe_FullMethodName = "/pomerium.zero.Connect/Subscribe"
 )
 
 // ConnectClient is the client API for Connect service.
@@ -31,8 +29,6 @@ const (
 // Connect service is used to maintain a persistent connection between the
 // Pomerium Core and Zero Cloud and receive messages from the cloud.
 type ConnectClient interface {
-	// ReportUsage reports usage.
-	ReportUsage(ctx context.Context, in *ReportUsageRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Subscribe is used to send a stream of messages from the Zero Cloud to the
 	// Pomerium Core in managed mode.
 	Subscribe(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Message], error)
@@ -44,16 +40,6 @@ type connectClient struct {
 
 func NewConnectClient(cc grpc.ClientConnInterface) ConnectClient {
 	return &connectClient{cc}
-}
-
-func (c *connectClient) ReportUsage(ctx context.Context, in *ReportUsageRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, Connect_ReportUsage_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *connectClient) Subscribe(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Message], error) {
@@ -82,8 +68,6 @@ type Connect_SubscribeClient = grpc.ServerStreamingClient[Message]
 // Connect service is used to maintain a persistent connection between the
 // Pomerium Core and Zero Cloud and receive messages from the cloud.
 type ConnectServer interface {
-	// ReportUsage reports usage.
-	ReportUsage(context.Context, *ReportUsageRequest) (*emptypb.Empty, error)
 	// Subscribe is used to send a stream of messages from the Zero Cloud to the
 	// Pomerium Core in managed mode.
 	Subscribe(*SubscribeRequest, grpc.ServerStreamingServer[Message]) error
@@ -96,9 +80,6 @@ type ConnectServer interface {
 // pointer dereference when methods are called.
 type UnimplementedConnectServer struct{}
 
-func (UnimplementedConnectServer) ReportUsage(context.Context, *ReportUsageRequest) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ReportUsage not implemented")
-}
 func (UnimplementedConnectServer) Subscribe(*SubscribeRequest, grpc.ServerStreamingServer[Message]) error {
 	return status.Errorf(codes.Unimplemented, "method Subscribe not implemented")
 }
@@ -122,24 +103,6 @@ func RegisterConnectServer(s grpc.ServiceRegistrar, srv ConnectServer) {
 	s.RegisterService(&Connect_ServiceDesc, srv)
 }
 
-func _Connect_ReportUsage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReportUsageRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConnectServer).ReportUsage(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Connect_ReportUsage_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConnectServer).ReportUsage(ctx, req.(*ReportUsageRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Connect_Subscribe_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(SubscribeRequest)
 	if err := stream.RecvMsg(m); err != nil {
@@ -157,12 +120,7 @@ type Connect_SubscribeServer = grpc.ServerStreamingServer[Message]
 var Connect_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "pomerium.zero.Connect",
 	HandlerType: (*ConnectServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "ReportUsage",
-			Handler:    _Connect_ReportUsage_Handler,
-		},
-	},
+	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "Subscribe",

@@ -6,13 +6,14 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
+	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
-	"github.com/pomerium/pomerium/pkg/zero/connect"
+	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 
 type usageReporterRecord struct {
@@ -23,32 +24,37 @@ type usageReporterRecord struct {
 }
 
 type usageReporter struct {
-	connectClient connect.ConnectClient
+	api *sdk.API
 
 	mu       sync.Mutex
 	byUserID map[string]usageReporterRecord
 }
 
-func newUsageReporter(connectClient connect.ConnectClient) *usageReporter {
+func newUsageReporter(api *sdk.API) *usageReporter {
 	return &usageReporter{
-		connectClient: connectClient,
-		byUserID:      make(map[string]usageReporterRecord),
+		api:      api,
+		byUserID: make(map[string]usageReporterRecord),
 	}
 }
 
 func (ur *usageReporter) report(ctx context.Context, records []usageReporterRecord) {
-	req := &connect.ReportUsageRequest{}
+	// if there were no updates there's nothing to do
+	if len(records) == 0 {
+		return
+	}
+
+	req := cluster.ReportUsageRequest{}
 	for _, record := range records {
-		req.Users = append(req.Users, &connect.ReportUsageRequest_User{
-			AccessedAt:  timestamppb.New(record.accessedAt),
+		req.Users = append(req.Users, cluster.ReportUsageUser{
+			AccessedAt:  record.accessedAt,
 			DisplayName: record.userDisplayName,
 			Email:       record.userEmail,
 			Id:          record.userID,
 		})
 	}
-	_, err := ur.connectClient.ReportUsage(ctx, req)
+	err := ur.api.ReportUsage(ctx, req)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("error reporting usage to connect service")
+		log.Error(ctx).Err(err).Msg("error reporting usage to api")
 	}
 }
 
@@ -58,13 +64,13 @@ func (ur *usageReporter) run(ctx context.Context, client databroker.DataBrokerSe
 		return databroker.NewSyncer("zero-usage-reporter-sessions", usageReporterSessionSyncerHandler{
 			usageReporter: ur,
 			client:        client,
-		}).Run(ctx)
+		}, databroker.WithTypeURL(protoutil.GetTypeURL(new(session.Session)))).Run(ctx)
 	})
 	eg.Go(func() error {
 		return databroker.NewSyncer("zero-usage-reporter-users", usageReporterUserSyncerHandler{
 			usageReporter: ur,
 			client:        client,
-		}).Run(ctx)
+		}, databroker.WithTypeURL(protoutil.GetTypeURL(new(user.User)))).Run(ctx)
 	})
 	return eg.Wait()
 }
