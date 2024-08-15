@@ -22,6 +22,7 @@ import (
 type API struct {
 	cfg              *config
 	cluster          cluster_api.ClientWithResponsesInterface
+	connectConn      *grpc.ClientConn
 	telemetryConn    *grpc.ClientConn
 	mux              *connect_mux.Mux
 	downloadURLCache *cluster_api.URLCache
@@ -86,6 +87,7 @@ func NewAPI(ctx context.Context, opts ...Option) (*API, error) {
 		cfg:              cfg,
 		cluster:          clusterClient,
 		mux:              connect_mux.New(connect_api.NewConnectClient(connectGRPCConn)),
+		connectConn:      connectGRPCConn,
 		telemetryConn:    telemetryGRPCConn,
 		downloadURLCache: cluster_api.NewURLCache(),
 		tokenFn:          tokenCache.GetToken,
@@ -114,6 +116,10 @@ func (api *API) GetClusterResourceBundles(ctx context.Context) (*cluster_api.Get
 	return apierror.CheckResponse[cluster_api.GetBundlesResponse](
 		api.cluster.GetClusterResourceBundlesWithResponse(ctx),
 	)
+}
+
+func (api *API) GetConnectConn() *grpc.ClientConn {
+	return api.connectConn
 }
 
 func (api *API) GetTelemetryConn() *grpc.ClientConn {

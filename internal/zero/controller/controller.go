@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/telemetry/sessions"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/zero/connect"
 )
 
 // Run runs Pomerium is managed mode using the provided token.
@@ -158,6 +159,7 @@ func (c *controller) runZeroControlLoop(ctx context.Context) error {
 				c.runReconcilerLeased,
 				c.runSessionAnalyticsLeased,
 				c.runPeriodicHealthChecksLeased,
+				c.runReportUsageLeased,
 				leaseStatus.MonitorLease,
 			),
 		)
@@ -193,6 +195,13 @@ func (c *controller) runSessionAnalyticsLeased(ctx context.Context, client datab
 func (c *controller) runPeriodicHealthChecksLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
 	return retry.WithBackoff(ctx, "zero-healthcheck", func(ctx context.Context) error {
 		return healthcheck.RunChecks(ctx, c.bootstrapConfig, client)
+	})
+}
+
+func (c *controller) runReportUsageLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
+	ur := newUsageReporter(connect.NewConnectClient(c.api.GetConnectConn()))
+	return retry.WithBackoff(ctx, "zero-report-usage", func(ctx context.Context) error {
+		return ur.run(ctx, client)
 	})
 }
 

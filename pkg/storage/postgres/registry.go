@@ -12,7 +12,6 @@ import (
 )
 
 type registryServer struct {
-	registry.UnimplementedRegistryServer
 	*Backend
 }
 

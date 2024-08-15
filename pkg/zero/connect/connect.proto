@@ -3,6 +3,9 @@ syntax = "proto3";
 package pomerium.zero;
 option go_package = "github.com/pomerium/pomerium/pkg/zero/connect";
 
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
 // SubscribeRequest is used to subscribe to a stream of messages
 // from the Zero Cloud to the Pomerium Core.
 //
@@ -36,7 +39,8 @@ message ConfigUpdated {
 // config.
 message BootstrapConfigUpdated {}
 
-// TelemetryRequest is sent to request current telemetry data from the Pomerium Core to be sent to the Zero Cloud.
+// TelemetryRequest is sent to request current telemetry data from the Pomerium
+// Core to be sent to the Zero Cloud.
 message TelemetryRequest {
   // include_session_analytics requests current MAU/DAU data
   optional SessionAnalyticsRequest session_analytics = 1;
@@ -44,6 +48,18 @@ message TelemetryRequest {
   optional EnvoyMetricsRequest envoy_metrics = 2;
   // pomerium_metrics requests current pomerium metrics
   optional PomeriumMetricsRequest pomerium_metrics = 3;
+}
+
+// ReportUsageRequest is used to report usage by a user.
+message ReportUsageRequest {
+  message User {
+    string id = 1;
+    string display_name = 2;
+    string email = 3;
+    google.protobuf.Timestamp accessed_at = 4;
+  }
+
+  repeated User users = 1;
 }
 
 // SessionAnalyticsRequest is used to request current MAU/DAU data
@@ -66,6 +82,8 @@ message PomeriumMetricsRequest {
 // Connect service is used to maintain a persistent connection between the
 // Pomerium Core and Zero Cloud and receive messages from the cloud.
 service Connect {
+  // ReportUsage reports usage.
+  rpc ReportUsage(ReportUsageRequest) returns (google.protobuf.Empty);
   // Subscribe is used to send a stream of messages from the Zero Cloud to the
   // Pomerium Core in managed mode.
   rpc Subscribe(SubscribeRequest) returns (stream Message);
