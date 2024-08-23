@@ -283,7 +283,7 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 	if envoyCgroup != s.cgroup {
 		return fmt.Errorf("envoy process is not in the expected cgroup: %s", envoyCgroup)
 	}
-	log.Info(ctx).Str("service", "envoy").Str("cgroup", s.cgroup).Msg("starting resource monitor")
+	log.Ctx(ctx).Info().Str("service", "envoy").Str("cgroup", s.cgroup).Msg("starting resource monitor")
 
 	ctx, ca := context.WithCancelCause(ctx)
 
@@ -329,7 +329,7 @@ LOOP:
 				if limit := limitWatcher.Value(); limit > 0 {
 					usage, err := s.driver.MemoryUsage(s.cgroup)
 					if err != nil {
-						log.Error(ctx).Err(err).Msg("failed to get memory saturation")
+						log.Ctx(ctx).Error().Err(err).Msg("failed to get memory saturation")
 						continue
 					}
 					saturation = max(0.0, min(1.0, float64(usage)/float64(limit)))
@@ -342,7 +342,7 @@ LOOP:
 			if saturationStr != lastValue {
 				lastValue = saturationStr
 				if err := s.writeMetricFile(groupMemory, metricCgroupMemorySaturation, saturationStr, 0o644); err != nil {
-					log.Error(ctx).Err(err).Msg("failed to write metric file")
+					log.Ctx(ctx).Error().Err(err).Msg("failed to write metric file")
 				}
 				s.updateActionStates(ctx, saturation)
 				metrics.RecordEnvoyCgroupMemorySaturation(ctx, s.cgroup, saturation)
@@ -726,7 +726,7 @@ func (w *memoryLimitWatcher) Watch(ctx context.Context) error {
 		for ctx.Err() == nil {
 			v, err := w.readValue()
 			if err != nil {
-				log.Error(ctx).Err(err).Msg("error reading memory limit")
+				log.Ctx(ctx).Error().Err(err).Msg("error reading memory limit")
 			} else if prev := w.value.Swap(v); prev != v {
 				log.Debug(ctx).
 					Uint64("prev", prev).
@@ -747,7 +747,7 @@ func (w *memoryLimitWatcher) Watch(ctx context.Context) error {
 				if (event.Mask & unix.IN_IGNORED) != 0 {
 					// watch was removed, or the file was deleted (this can happen if
 					// the memory controller is removed from the parent's subtree_control)
-					log.Info(ctx).Str("file", w.limitFilePath).Msg("watched file removed")
+					log.Ctx(ctx).Info().Str("file", w.limitFilePath).Msg("watched file removed")
 					return
 				}
 			}

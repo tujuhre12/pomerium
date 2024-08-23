@@ -57,7 +57,7 @@ func (srv *Server) UpdateConfig(options ...ServerOption) {
 	if srv.backend != nil {
 		err := srv.backend.Close()
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("databroker: error closing backend")
+			log.Ctx(ctx).Error().Err(err).Msg("databroker: error closing backend")
 		}
 		srv.backend = nil
 	}
@@ -65,7 +65,7 @@ func (srv *Server) UpdateConfig(options ...ServerOption) {
 	if srv.registry != nil {
 		err := srv.registry.Close()
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("databroker: error closing registry")
+			log.Ctx(ctx).Error().Err(err).Msg("databroker: error closing registry")
 		}
 		srv.registry = nil
 	}
@@ -457,10 +457,10 @@ func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
 
 	switch srv.cfg.storageType {
 	case config.StorageInMemoryName:
-		log.Info(ctx).Msg("using in-memory store")
+		log.Ctx(ctx).Info().Msg("using in-memory store")
 		return inmemory.New(), nil
 	case config.StoragePostgresName:
-		log.Info(ctx).Msg("using postgres store")
+		log.Ctx(ctx).Info().Msg("using postgres store")
 		backend = postgres.New(srv.cfg.storageConnectionString)
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", srv.cfg.storageType)

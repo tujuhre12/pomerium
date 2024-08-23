@@ -43,7 +43,7 @@ func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 
 	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("decoding shared key")
+		log.Ctx(ctx).Error().Err(err).Msg("decoding shared key")
 		return
 	}
 
@@ -54,7 +54,7 @@ func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		SignedJWTKey:   sharedKey,
 	})
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("connecting to registry")
+		log.Ctx(ctx).Error().Err(err).Msg("connecting to registry")
 		return
 	}
 
@@ -145,7 +145,7 @@ func runReporter(
 			after = resp.CallBackAfter.AsDuration()
 			backoff.Reset()
 		case <-ctx.Done():
-			log.Info(ctx).Msg("service registry reporter stopping")
+			log.Ctx(ctx).Info().Msg("service registry reporter stopping")
 			return
 		}
 	}

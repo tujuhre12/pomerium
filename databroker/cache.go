@@ -115,7 +115,7 @@ func New(cfg *config.Config, eventsMgr *events.Manager) (*DataBroker, error) {
 func (c *DataBroker) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	err := c.update(ctx, cfg)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("databroker: error updating configuration")
+		log.Ctx(ctx).Error().Err(err).Msg("databroker: error updating configuration")
 	}
 
 	c.dataBrokerServer.OnConfigChange(ctx, cfg)
@@ -171,13 +171,13 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 	if cfg.Options.SupportsUserRefresh() {
 		authenticator, err := identity.NewAuthenticator(oauthOptions)
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("databroker: failed to create authenticator")
+			log.Ctx(ctx).Error().Err(err).Msg("databroker: failed to create authenticator")
 		} else {
 			options = append(options, manager.WithAuthenticator(authenticator))
 			legacyOptions = append(legacyOptions, legacymanager.WithAuthenticator(authenticator))
 		}
 	} else {
-		log.Info(ctx).Msg("databroker: disabling refresh of user sessions")
+		log.Ctx(ctx).Info().Msg("databroker: disabling refresh of user sessions")
 	}
 
 	if c.manager == nil {

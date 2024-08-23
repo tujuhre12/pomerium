@@ -54,14 +54,14 @@ func main() {
 
 	toURL, err := url.Parse(*to)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg(*to)
+		log.Ctx(ctx).Error().Err(err).Msg(*to)
 		return
 	}
 
 	eg, ctx := errgroup.WithContext(ctx)
 	conn, err := grpcConn(ctx, *addr, *key)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("databroker grpc conn")
+		log.Ctx(ctx).Error().Err(err).Msg("databroker grpc conn")
 		return
 	}
 	defer conn.Close()
@@ -69,11 +69,11 @@ func main() {
 	if *to == "" {
 		*to, err = xdserr.RunEcho(ctx)
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("echo server")
+			log.Ctx(ctx).Error().Err(err).Msg("echo server")
 			return
 		}
 	}
-	log.Info(ctx).Str("url", *to).Msg("echo server")
+	log.Ctx(ctx).Info().Str("url", *to).Msg("echo server")
 
 	eg.Go(func() error {
 		return run(ctx, conn, *toURL, *domain, opts{
@@ -84,7 +84,7 @@ func main() {
 		})
 	})
 	if err := eg.Wait(); err != nil {
-		log.Error(ctx).Err(err).Msg("altering config")
+		log.Ctx(ctx).Error().Err(err).Msg("altering config")
 	}
 }
 
@@ -114,7 +114,7 @@ func run(ctx context.Context, conn *grpc.ClientConn, to url.URL, domain string, 
 			changed[j] = idx
 			cfg.Routes[idx] = makeRoute(domain, to)
 		}
-		log.Info(ctx).Ints("changed", changed).Msg("changed")
+		log.Ctx(ctx).Info().Ints("changed", changed).Msg("changed")
 		if err := saveAndLogConfig(ctx, dbc, cfg, o.graceful); err != nil {
 			return err
 		}
@@ -175,7 +175,7 @@ func waitHealthy(ctx context.Context, _ *http.Client, routes []*config.Route) er
 		return err
 	}
 
-	log.Info(ctx).
+	log.Ctx(ctx).Info().
 		Int("routes", len(routes)).
 		Str("elapsed", time.Since(now).String()).
 		Msg("ok")
@@ -195,6 +195,6 @@ func saveConfig(ctx context.Context, client databroker.DataBrokerServiceClient, 
 	if err != nil {
 		return err
 	}
-	log.Info(ctx).Uint64("version", r.GetRecord().GetVersion()).Msg("set config")
+	log.Ctx(ctx).Info().Uint64("version", r.GetRecord().GetVersion()).Msg("set config")
 	return nil
 }

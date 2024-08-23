@@ -90,7 +90,7 @@ func (mgr *TraceManager) OnConfigChange(ctx context.Context, cfg *Config) {
 
 	traceOpts, err := NewTracingOptions(cfg.Options)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("trace: failed to build tracing options")
+		log.Ctx(ctx).Error().Err(err).Msg("trace: failed to build tracing options")
 		return
 	}
 
@@ -109,17 +109,17 @@ func (mgr *TraceManager) OnConfigChange(ctx context.Context, cfg *Config) {
 		return
 	}
 
-	log.Info(ctx).Interface("options", traceOpts).Msg("trace: starting exporter")
+	log.Ctx(ctx).Info().Interface("options", traceOpts).Msg("trace: starting exporter")
 
 	mgr.provider, err = trace.GetProvider(traceOpts)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("trace: failed to register exporter")
+		log.Ctx(ctx).Error().Err(err).Msg("trace: failed to register exporter")
 		return
 	}
 
 	err = mgr.provider.Register(traceOpts)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("trace: failed to register exporter")
+		log.Ctx(ctx).Error().Err(err).Msg("trace: failed to register exporter")
 		return
 	}
 }

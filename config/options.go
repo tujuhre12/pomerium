@@ -412,7 +412,7 @@ func checkConfigKeysErrors(configFile string, o *Options, unused []string) error
 		var evt *zerolog.Event
 		switch check.KeyAction {
 		case KeyActionError:
-			evt = log.Error(ctx)
+			evt = log.Ctx(ctx).Error()
 			err = errInvalidConfigKeys
 		default:
 			evt = log.Warn(ctx)
@@ -1135,13 +1135,13 @@ func (o *Options) GetX509Certificates() []*x509.Certificate {
 	if o.CertFile != "" {
 		cert, err := cryptutil.ParsePEMCertificateFromFile(o.CertFile)
 		if err != nil {
-			log.Error(context.Background()).Err(err).Str("file", o.CertFile).Msg("invalid cert_file")
+			log.Error().Err(err).Str("file", o.CertFile).Msg("invalid cert_file")
 		} else {
 			certs = append(certs, cert)
 		}
 	} else if o.Cert != "" {
 		if cert, err := cryptutil.ParsePEMCertificateFromBase64(o.Cert); err != nil {
-			log.Error(context.Background()).Err(err).Msg("invalid cert")
+			log.Error().Err(err).Msg("invalid cert")
 		} else {
 			certs = append(certs, cert)
 		}
@@ -1150,7 +1150,7 @@ func (o *Options) GetX509Certificates() []*x509.Certificate {
 	for _, c := range o.CertificateData {
 		cert, err := cryptutil.ParsePEMCertificate(c.GetCertBytes())
 		if err != nil {
-			log.Error(context.Background()).Err(err).Msg("invalid certificate")
+			log.Error().Err(err).Msg("invalid certificate")
 		} else {
 			certs = append(certs, cert)
 		}
@@ -1159,7 +1159,7 @@ func (o *Options) GetX509Certificates() []*x509.Certificate {
 	for _, c := range o.CertificateFiles {
 		cert, err := cryptutil.ParsePEMCertificateFromFile(c.CertFile)
 		if err != nil {
-			log.Error(context.Background()).Err(err).Msg("invalid certificate_file")
+			log.Error().Err(err).Msg("invalid certificate_file")
 		} else {
 			certs = append(certs, cert)
 		}
@@ -1469,12 +1469,12 @@ func (o *Options) applyExternalCerts(ctx context.Context, certsIndex *cryptutil.
 	for _, c := range certs {
 		cert, err := cryptutil.ParsePEMCertificate(c.GetCertBytes())
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("parsing cert from databroker: skipped")
+			log.Ctx(ctx).Error().Err(err).Msg("parsing cert from databroker: skipped")
 			continue
 		}
 
 		if overlaps, name := certsIndex.OverlapsWithExistingCertificate(cert); overlaps {
-			log.Error(ctx).Err(err).Str("domain", name).Msg("overlaps with local certs: skipped")
+			log.Ctx(ctx).Error().Err(err).Str("domain", name).Msg("overlaps with local certs: skipped")
 			continue
 		}
 

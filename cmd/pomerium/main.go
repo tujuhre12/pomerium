@@ -42,7 +42,7 @@ func main() {
 	if err := runFn(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		log.Fatal().Err(err).Msg("cmd/pomerium")
 	}
-	log.Info(ctx).Msg("cmd/pomerium: exiting")
+	log.Ctx(ctx).Info().Msg("cmd/pomerium: exiting")
 }
 
 func run(ctx context.Context) error {

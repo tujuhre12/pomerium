@@ -80,7 +80,7 @@ func ExampleDebug() {
 // Example of a log at a particular "level" (in this case, "info")
 func ExampleInfo() {
 	captureOutput(func() {
-		log.Info(context.Background()).Msg("hello world")
+		log.Info().Msg("hello world")
 	})
 	// Output: {"level":"info","time":"2008-01-08T17:05:05Z","message":"hello world"}
 }
@@ -96,7 +96,7 @@ func ExampleWarn() {
 // Example of a log at a particular "level" (in this case, "error")
 func ExampleError() {
 	captureOutput(func() {
-		log.Error(context.Background()).Msg("hello world")
+		log.Error().Msg("hello world")
 	})
 	// Output: {"level":"error","time":"2008-01-08T17:05:05Z","message":"hello world"}
 }
@@ -130,7 +130,7 @@ func Example() {
 		}
 
 		log.Debug(context.Background()).Msg("This message appears only when log level set to Debug")
-		log.Info(context.Background()).Msg("This message appears when log level set to Debug or Info")
+		log.Info().Msg("This message appears when log level set to Debug or Info")
 
 		if e := log.Debug(context.Background()); e.Enabled() {
 			// Compute log output only if enabled.
@@ -145,16 +145,16 @@ func ExampleSetLevel() {
 	captureOutput(func() {
 		log.SetLevel(zerolog.InfoLevel)
 		log.Debug(context.Background()).Msg("Debug")
-		log.Info(context.Background()).Msg("Debug or Info")
+		log.Info().Msg("Debug or Info")
 		log.SetLevel(zerolog.WarnLevel)
 		log.Debug(context.Background()).Msg("Debug")
-		log.Info(context.Background()).Msg("Debug or Info")
+		log.Info().Msg("Debug or Info")
 		log.Warn(context.Background()).Msg("Debug or Info or Warn")
 		log.SetLevel(zerolog.ErrorLevel)
 		log.Debug(context.Background()).Msg("Debug")
-		log.Info(context.Background()).Msg("Debug or Info")
+		log.Info().Msg("Debug or Info")
 		log.Warn(context.Background()).Msg("Debug or Info or Warn")
-		log.Error(context.Background()).Msg("Debug or Info or Warn or Error")
+		log.Error().Msg("Debug or Info or Warn or Error")
 		log.SetLevel(zerolog.DebugLevel)
 		log.Debug(context.Background()).Msg("Debug")
 	})
@@ -184,7 +184,7 @@ func ExampleContext() {
 				return c.Int("counter", i)
 			})
 		}
-		log.Info(ctx1).Str("non_ctx_param", "value").Msg("after counter")
+		log.Ctx(ctx1).Info().Str("non_ctx_param", "value").Msg("after counter")
 	})
 	// Output:
 	// {"level":"warn","non_context_param":"value","time":"2008-01-08T17:05:05Z","message":"background"}

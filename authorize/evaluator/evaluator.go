@@ -182,7 +182,7 @@ func getOrCreatePolicyEvaluators(
 	evals, errs := errgrouputil.Build(ctx, builders...)
 	if len(errs) > 0 {
 		for _, err := range errs {
-			log.Error(ctx).Msg(err.Error())
+			log.Ctx(ctx).Error().Msg(err.Error())
 		}
 		return nil, fmt.Errorf("authorize: error building policy evaluators")
 	}
@@ -351,7 +351,7 @@ func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate signing key: %w", err)
 	}
-	log.Info(context.TODO()).Str("Algorithm", jwk.Algorithm).
+	log.Info().Str("Algorithm", jwk.Algorithm).
 		Str("KeyID", jwk.KeyID).
 		Interface("Public Key", jwk.Public()).
 		Msg("authorize: signing key")

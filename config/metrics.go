@@ -78,7 +78,7 @@ func (mgr *MetricsManager) updateInfo(ctx context.Context, cfg *Config) {
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to get OS hostname")
+		log.Ctx(ctx).Error().Err(err).Msg("telemetry/metrics: failed to get OS hostname")
 		hostname = "__unknown__"
 	}
 
@@ -97,7 +97,7 @@ func (mgr *MetricsManager) updateServer(ctx context.Context, cfg *Config) {
 	mgr.handler = nil
 
 	if mgr.addr == "" {
-		log.Info(ctx).Msg("metrics: http server disabled")
+		log.Ctx(ctx).Info().Msg("metrics: http server disabled")
 		return
 	}
 
@@ -108,7 +108,7 @@ func (mgr *MetricsManager) updateServer(ctx context.Context, cfg *Config) {
 		})
 	handler, err := metrics.PrometheusHandler(toInternalEndpoints(mgr.endpoints), mgr.installationID, defaultMetricsTimeout)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("metrics: failed to create prometheus handler")
+		log.Ctx(ctx).Error().Err(err).Msg("metrics: failed to create prometheus handler")
 		return
 	}
 

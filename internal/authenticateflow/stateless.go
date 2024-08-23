@@ -232,7 +232,7 @@ func (s *Stateless) PersistSession(
 	}
 	err = storeIdentityProfile(w, s.options.NewCookie(), s.cookieCipher, profile)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("failed to store identity profile")
+		log.Ctx(ctx).Error().Err(err).Msg("failed to store identity profile")
 	}
 	return nil
 }

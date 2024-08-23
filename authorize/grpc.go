@@ -74,7 +74,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	res, err := state.evaluator.Evaluate(ctx, req)
 	a.stateLock.RUnlock()
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("error during OPA evaluation")
+		log.Ctx(ctx).Error().Err(err).Msg("error during OPA evaluation")
 		return nil, err
 	}
 
@@ -85,7 +85,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	resp, err := a.handleResult(ctx, in, req, res)
 	if err != nil {
-		log.Error(ctx).Err(err).Str("request-id", requestid.FromContext(ctx)).Msg("grpc check ext_authz_error")
+		log.Ctx(ctx).Error().Err(err).Str("request-id", requestid.FromContext(ctx)).Msg("grpc check ext_authz_error")
 	}
 	a.logAuthorizeCheck(ctx, in, resp, res, s, u)
 	return resp, err

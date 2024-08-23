@@ -21,7 +21,7 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogS
 	for {
 		msg, err := stream.Recv()
 		if err != nil {
-			log.Error(stream.Context()).Err(err).Msg("access log stream error, disconnecting")
+			log.Ctx(stream.Context()).Error().Err(err).Msg("access log stream error, disconnecting")
 			return err
 		}
 
@@ -45,7 +45,7 @@ func accessLogListener(
 		if failure == "" {
 			continue
 		}
-		e := log.Info(ctx).Str("service", "envoy")
+		e := log.Ctx(ctx).Info().Str("service", "envoy")
 		dict := zerolog.Dict()
 		populateCertEventDict(entry.GetCommonProperties().GetTlsProperties().GetPeerCertificateProperties(), dict)
 		e.Dict("client-certificate", dict)
@@ -65,7 +65,7 @@ func (srv *Server) accessLogHTTP(
 		if reqPath == "/ping" || reqPath == "/healthz" {
 			evt = log.Debug(ctx)
 		} else {
-			evt = log.Info(ctx)
+			evt = log.Ctx(ctx).Info()
 		}
 		evt = evt.Str("service", "envoy")
 
