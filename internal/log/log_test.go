@@ -64,7 +64,7 @@ func ExamplePrintf() {
 // Example of a log with no particular "level"
 func ExampleLog() {
 	captureOutput(func() {
-		log.Log(context.Background()).Msg("hello world")
+		log.Log().Msg("hello world")
 	})
 	// Output: {"time":"2008-01-08T17:05:05Z","message":"hello world"}
 }
@@ -72,7 +72,7 @@ func ExampleLog() {
 // Example of a log at a particular "level" (in this case, "debug")
 func ExampleDebug() {
 	captureOutput(func() {
-		log.Debug(context.Background()).Msg("hello world")
+		log.Debug().Msg("hello world")
 	})
 	// Output: {"level":"debug","time":"2008-01-08T17:05:05Z","message":"hello world"}
 }
@@ -129,10 +129,10 @@ func Example() {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
 
-		log.Debug(context.Background()).Msg("This message appears only when log level set to Debug")
+		log.Debug().Msg("This message appears only when log level set to Debug")
 		log.Info().Msg("This message appears when log level set to Debug or Info")
 
-		if e := log.Debug(context.Background()); e.Enabled() {
+		if e := log.Debug(); e.Enabled() {
 			// Compute log output only if enabled.
 			value := "bar"
 			e.Str("foo", value).Msg("some debug message")
@@ -144,19 +144,19 @@ func Example() {
 func ExampleSetLevel() {
 	captureOutput(func() {
 		log.SetLevel(zerolog.InfoLevel)
-		log.Debug(context.Background()).Msg("Debug")
+		log.Debug().Msg("Debug")
 		log.Info().Msg("Debug or Info")
 		log.SetLevel(zerolog.WarnLevel)
-		log.Debug(context.Background()).Msg("Debug")
+		log.Debug().Msg("Debug")
 		log.Info().Msg("Debug or Info")
 		log.Warn(context.Background()).Msg("Debug or Info or Warn")
 		log.SetLevel(zerolog.ErrorLevel)
-		log.Debug(context.Background()).Msg("Debug")
+		log.Debug().Msg("Debug")
 		log.Info().Msg("Debug or Info")
 		log.Warn(context.Background()).Msg("Debug or Info or Warn")
 		log.Error().Msg("Debug or Info or Warn or Error")
 		log.SetLevel(zerolog.DebugLevel)
-		log.Debug(context.Background()).Msg("Debug")
+		log.Debug().Msg("Debug")
 	})
 	// Output:
 	// {"level":"info","time":"2008-01-08T17:05:05Z","message":"Debug or Info"}
