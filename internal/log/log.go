@@ -103,13 +103,6 @@ func Info() *zerolog.Event {
 	return log.Info()
 }
 
-// Warn starts a new message with warn level.
-//
-// You must call Msg on the returned event in order to send the event.
-func Warn(_ context.Context) *zerolog.Event {
-	return log.Warn()
-}
-
 // Error starts a new message with error level.
 //
 // You must call Msg on the returned event in order to send the event.

@@ -38,7 +38,7 @@ func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 
 	services, err := getReportedServices(cfg)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("metrics announce to service registry is disabled")
+		log.Ctx(ctx).Error().Err(err).Msg("metrics announce to service registry is disabled")
 	}
 
 	sharedKey, err := cfg.Options.GetSharedKey()

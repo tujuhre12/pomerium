@@ -141,18 +141,15 @@ func ExampleSetLevel() {
 		log.SetLevel(zerolog.WarnLevel)
 		log.Debug().Msg("Debug")
 		log.Info().Msg("Debug or Info")
-		log.Warn(context.Background()).Msg("Debug or Info or Warn")
 		log.SetLevel(zerolog.ErrorLevel)
 		log.Debug().Msg("Debug")
 		log.Info().Msg("Debug or Info")
-		log.Warn(context.Background()).Msg("Debug or Info or Warn")
 		log.Error().Msg("Debug or Info or Warn or Error")
 		log.SetLevel(zerolog.DebugLevel)
 		log.Debug().Msg("Debug")
 	})
 	// Output:
 	// {"level":"info","time":"2008-01-08T17:05:05Z","message":"Debug or Info"}
-	// {"level":"warn","time":"2008-01-08T17:05:05Z","message":"Debug or Info or Warn"}
 	// {"level":"error","time":"2008-01-08T17:05:05Z","message":"Debug or Info or Warn or Error"}
 	// {"level":"debug","time":"2008-01-08T17:05:05Z","message":"Debug"}
 }
@@ -167,9 +164,9 @@ func ExampleContext() {
 			return c.Str("param_two", "two")
 		})
 
-		log.Error(bg).Str("non_context_param", "value").Msg("background")
-		log.Error(ctx1).Str("non_context_param", "value").Msg("first")
-		log.Error(ctx2).Str("non_context_param", "value").Msg("second")
+		log.Ctx(bg).Error().Str("non_context_param", "value").Msg("background")
+		log.Ctx(ctx1).Error().Str("non_context_param", "value").Msg("first")
+		log.Ctx(ctx2).Error().Str("non_context_param", "value").Msg("second")
 
 		for i := 0; i < 10; i++ {
 			ctx1 = log.WithContext(ctx1, func(c zerolog.Context) zerolog.Context {

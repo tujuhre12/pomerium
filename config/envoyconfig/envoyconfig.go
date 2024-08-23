@@ -175,7 +175,7 @@ func (b *Builder) envoyTLSCertificateFromGoTLSCertificate(
 			},
 		))
 	} else {
-		log.Error(ctx).Err(err).Msg("failed to marshal private key for tls config")
+		log.Ctx(ctx).Error().Err(err).Msg("failed to marshal private key for tls config")
 	}
 	for _, scts := range cert.SignedCertificateTimestamps {
 		envoyCert.SignedCertificateTimestamp = append(envoyCert.SignedCertificateTimestamp,

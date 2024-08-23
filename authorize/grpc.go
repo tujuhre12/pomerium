@@ -55,7 +55,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	if sessionState != nil {
 		s, err = a.getDataBrokerSessionOrServiceAccount(ctx, sessionState.ID, sessionState.DatabrokerRecordVersion)
 		if err != nil {
-			log.Info(ctx).Err(err).Msg("clearing session due to missing or invalid session or service account")
+			log.Ctx(ctx).Info().Err(err).Msg("clearing session due to missing or invalid session or service account")
 			sessionState = nil
 		}
 	}
@@ -65,7 +65,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in, sessionState)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("error building evaluator request")
+		log.Ctx(ctx).Error().Err(err).Msg("error building evaluator request")
 		return nil, err
 	}
 
@@ -194,7 +194,7 @@ func getClientCertificateInfo(
 
 	chain, err := url.QueryUnescape(escapedChain)
 	if err != nil {
-		log.Info(ctx).Str("chain", escapedChain).Err(err).
+		log.Ctx(ctx).Info().Str("chain", escapedChain).Err(err).
 			Msg(`received unexpected client certificate "chain" value`)
 		return c
 	}
@@ -202,7 +202,7 @@ func getClientCertificateInfo(
 	// Split the chain into the leaf and any intermediate certificates.
 	p, rest := pem.Decode([]byte(chain))
 	if p == nil {
-		log.Info(ctx).Str("chain", escapedChain).
+		log.Ctx(ctx).Info().Str("chain", escapedChain).
 			Msg(`received unexpected client certificate "chain" value (no PEM block found)`)
 		return c
 	}
