@@ -14,6 +14,9 @@ import (
 	"github.com/pomerium/csrf"
 )
 
+// AdditionalHeadContent is content that will be added to the head of the index.html file.
+var AdditionalHeadContent template.HTML
+
 // ServeFile serves a file.
 func ServeFile(w http.ResponseWriter, r *http.Request, filePath string) error {
 	f, etag, err := openFile(filepath.Join("dist", filePath))
@@ -35,8 +38,9 @@ func RenderPage(page, title string, data map[string]any) ([]byte, error) {
 	data["page"] = page
 
 	return renderIndex(map[string]any{
-		"Title": title,
-		"Data":  data,
+		"AdditionalHeadContent": AdditionalHeadContent,
+		"Title":                 title,
+		"Data":                  data,
 	})
 }
 
