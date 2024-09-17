@@ -7,6 +7,7 @@ require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
 	contrib.go.opencensus.io/exporter/zipkin v0.1.2
+	filippo.io/keygen v0.0.0-20240718133620-7f162efbbd87
 	github.com/CAFxX/httpcompression v0.0.9
 	github.com/DataDog/opencensus-go-exporter-datadog v0.0.0-20200406135749-5c268882acf0
 	github.com/VictoriaMetrics/fastcache v1.12.2
@@ -101,6 +102,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.5.0 // indirect
 	cloud.google.com/go/iam v1.2.0 // indirect
 	dario.cat/mergo v1.0.0 // indirect
+	filippo.io/bigmod v0.0.3 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/DataDog/datadog-go v3.5.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
