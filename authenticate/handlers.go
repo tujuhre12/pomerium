@@ -93,6 +93,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 
 	// routes that need a session:
 	sr = sr.NewRoute().Subrouter()
+	sr.StrictSlash(true)
 	sr.Use(a.VerifySession)
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
 	sr.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
