@@ -22,6 +22,28 @@
     "name": "pomerium-acme-tls-alpn"
   },
   {
+    "loadAssignment": {
+      "clusterName": "pomerium-acme-http",
+      "endpoints": [
+        {
+          "lbEndpoints": [
+            {
+              "endpoint": {
+                "address": {
+                  "socketAddress": {
+                    "address": "127.0.0.1",
+                    "portValue": 0
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "name": "pomerium-acme-http"
+  },
+  {
     "connectTimeout": "10s",
     "dnsLookupFamily": "V4_PREFERRED",
     "loadAssignment": {

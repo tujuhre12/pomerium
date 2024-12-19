@@ -11,7 +11,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
-	"fmt"
 	"io"
 	"math/big"
 	"net"
@@ -296,66 +295,6 @@ func TestConfig(t *testing.T) {
 		case ocspUpdatedOK = <-ocspUpdated:
 		}
 	}
-}
-
-func TestRedirect(t *testing.T) {
-	li, err := net.Listen("tcp", "127.0.0.1:0")
-	if !assert.NoError(t, err) {
-		return
-	}
-	addr := li.Addr().String()
-	_ = li.Close()
-
-	src := config.NewStaticSource(&config.Config{
-		Options: &config.Options{
-			HTTPRedirectAddr: addr,
-			SetResponseHeaders: map[string]string{
-				"X-Frame-Options":           "SAMEORIGIN",
-				"X-XSS-Protection":          "1; mode=block",
-				"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-			},
-		},
-	})
-	_, err = New(context.Background(), src)
-	if !assert.NoError(t, err) {
-		return
-	}
-	err = waitFor(addr)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	client := &http.Client{
-		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-
-	res, err := client.Get(fmt.Sprintf("http://%s", addr))
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer res.Body.Close()
-
-	assert.Equal(t, http.StatusMovedPermanently, res.StatusCode, "should redirect to https")
-	for k, v := range src.GetConfig().Options.SetResponseHeaders {
-		assert.NotEqual(t, v, res.Header.Get(k), "should ignore options header")
-	}
-}
-
-func waitFor(addr string) error {
-	var err error
-	deadline := time.Now().Add(time.Second * 30)
-	for time.Now().Before(deadline) {
-		var conn net.Conn
-		conn, err = net.Dial("tcp", addr)
-		if err == nil {
-			conn.Close()
-			return nil
-		}
-		time.Sleep(time.Second)
-	}
-	return err
 }
 
 func readJWSPayload(r io.Reader, dst any) {

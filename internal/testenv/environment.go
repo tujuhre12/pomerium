@@ -30,6 +30,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/grpclog"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/log"
@@ -39,11 +45,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/slices"
-	"github.com/rs/zerolog"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc/grpclog"
 )
 
 // Environment is a lightweight integration test fixture that runs Pomerium
@@ -450,7 +451,7 @@ func (e *environment) Start() {
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
 	}
-	ports, err := netutil.AllocatePorts(9)
+	ports, err := netutil.AllocatePorts(10)
 	require.NoError(e.t, err)
 	atoi := func(str string) int {
 		p, err := strconv.Atoi(str)
@@ -468,7 +469,7 @@ func (e *environment) Start() {
 	e.ports.Metrics.Resolve(atoi(ports[6]))
 	e.ports.Debug.Resolve(atoi(ports[7]))
 	e.ports.ALPN.Resolve(atoi(ports[8]))
-	cfg.AllocatePorts(*(*[6]string)(ports[3:]))
+	cfg.AllocatePorts(*(*[7]string)(ports[3:]))
 
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
 	cfg.Options.Services = "all"

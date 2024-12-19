@@ -20,7 +20,6 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -50,12 +49,15 @@ type Manager struct {
 	config    *config.Config
 	certmagic *certmagic.Config
 	acmeMgr   atomic.Pointer[certmagic.ACMEIssuer]
-	srv       *http.Server
 
 	acmeTLSALPNLock     sync.Mutex
 	acmeTLSALPNPort     string
 	acmeTLSALPNListener net.Listener
 	acmeTLSALPNConfig   *tls.Config
+
+	acmeHTTPLock     sync.Mutex
+	acmeHTTPPort     string
+	acmeHTTPListener net.Listener
 
 	*ocspCache
 
@@ -228,7 +230,7 @@ func (mgr *Manager) renewConfigCerts(ctx context.Context) error {
 	log.Ctx(ctx).Info().Msg("updating certificates")
 
 	cfg = mgr.src.GetConfig().Clone()
-	mgr.updateServer(ctx, cfg)
+	mgr.updateACMEHTTPServer(ctx, cfg)
 	mgr.updateACMETLSALPNServer(ctx, cfg)
 	if err := mgr.updateAutocert(ctx, cfg); err != nil {
 		return err
@@ -246,7 +248,7 @@ func (mgr *Manager) update(ctx context.Context, cfg *config.Config) error {
 	defer mgr.mu.Unlock()
 	defer func() { mgr.config = cfg }()
 
-	mgr.updateServer(ctx, cfg)
+	mgr.updateACMEHTTPServer(ctx, cfg)
 	mgr.updateACMETLSALPNServer(ctx, cfg)
 	return mgr.updateAutocert(ctx, cfg)
 }
@@ -313,40 +315,51 @@ func (mgr *Manager) updateAutocert(ctx context.Context, cfg *config.Config) erro
 	return nil
 }
 
-func (mgr *Manager) updateServer(ctx context.Context, cfg *config.Config) {
-	if mgr.srv != nil {
-		// nothing to do if the address hasn't changed
-		if mgr.srv.Addr == cfg.Options.HTTPRedirectAddr {
-			return
-		}
-		// close immediately, don't care about the error
-		_ = mgr.srv.Close()
-		mgr.srv = nil
-	}
+func (mgr *Manager) updateACMEHTTPServer(ctx context.Context, cfg *config.Config) {
+	mgr.acmeHTTPLock.Lock()
+	defer mgr.acmeHTTPLock.Unlock()
 
-	if cfg.Options.HTTPRedirectAddr == "" {
+	// if the port hasn't changed, we're done
+	if mgr.acmeHTTPPort == cfg.ACMEHTTPPort {
 		return
 	}
 
-	redirect := httputil.RedirectHandler()
+	// store the updated port
+	mgr.acmeHTTPPort = cfg.ACMEHTTPPort
 
-	hsrv := &http.Server{
-		Addr: cfg.Options.HTTPRedirectAddr,
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if mgr.handleHTTPChallenge(w, r) {
-				return
-			}
-			redirect.ServeHTTP(w, r)
-		}),
+	// close the existing listener
+	if mgr.acmeHTTPListener != nil {
+		_ = mgr.acmeHTTPListener.Close()
+		mgr.acmeHTTPListener = nil
 	}
+
+	// start a new listener
+	addr := net.JoinHostPort("127.0.0.1", cfg.ACMEHTTPPort)
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to run acme http server")
+		return
+	}
+	mgr.acmeHTTPListener = ln
+
 	go func() {
-		log.Ctx(ctx).Info().Str("addr", hsrv.Addr).Msg("starting http redirect server")
-		err := hsrv.ListenAndServe()
+		srv := &http.Server{
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if mgr.handleHTTPChallenge(w, r) {
+					return
+				}
+				// just serve not found
+				http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			}),
+			ReadTimeout:  time.Minute,
+			WriteTimeout: time.Minute,
+			IdleTimeout:  5 * time.Minute,
+		}
+		err := srv.Serve(ln)
 		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("failed to run http redirect server")
+			log.Ctx(ctx).Error().Err(err).Msg("error serving acme http server")
 		}
 	}()
-	mgr.srv = hsrv
 }
 
 func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Config) {

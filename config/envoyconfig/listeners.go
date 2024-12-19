@@ -65,6 +65,10 @@ func (b *Builder) BuildListeners(
 		listeners = append(listeners, li)
 	}
 
+	if shouldStartRedirectListener(cfg.Options) {
+		listeners = append(listeners, b.buildRedirectListener(cfg))
+	}
+
 	li, err := b.buildOutboundListener(cfg)
 	if err != nil {
 		return nil, err

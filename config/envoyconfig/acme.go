@@ -6,9 +6,51 @@ import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 
 	"github.com/pomerium/pomerium/config"
 )
+
+const (
+	acmeHTTPClusterName = "pomerium-acme-http"
+	acmeHTTPPrefix      = "/.well-known/acme-challenge/"
+)
+
+func (b *Builder) buildACMEHTTPCluster(cfg *config.Config) *envoy_config_cluster_v3.Cluster {
+	port, _ := strconv.ParseUint(cfg.ACMEHTTPPort, 10, 32)
+	return &envoy_config_cluster_v3.Cluster{
+		Name: acmeHTTPClusterName,
+		LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
+			ClusterName: acmeHTTPClusterName,
+			Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{{
+				LbEndpoints: []*envoy_config_endpoint_v3.LbEndpoint{{
+					HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
+						Endpoint: &envoy_config_endpoint_v3.Endpoint{
+							Address: buildTCPAddress("127.0.0.1", uint32(port)),
+						},
+					},
+				}},
+			}},
+		},
+	}
+}
+
+func (b *Builder) buildACMEHTTPRoute() *envoy_config_route_v3.Route {
+	return &envoy_config_route_v3.Route{
+		Match: &envoy_config_route_v3.RouteMatch{
+			PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{
+				Prefix: acmeHTTPPrefix,
+			},
+		},
+		Action: &envoy_config_route_v3.Route_Route{
+			Route: &envoy_config_route_v3.RouteAction{
+				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+					Cluster: acmeHTTPClusterName,
+				},
+			},
+		},
+	}
+}
 
 // Pomerium implements the ACME TLS-ALPN protocol by adding a filter chain to the main HTTPS listener
 // that matches the acme-tls/1 application protocol on incoming requests and forwards them to a listener
