@@ -13,7 +13,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/webauthnutil"
-	"github.com/pomerium/pomerium/proxy/portal"
 )
 
 func (p *Proxy) getSession(ctx context.Context, sessionID string) (s *session.Session, isImpersonated bool, err error) {
@@ -60,23 +59,6 @@ func (p *Proxy) getUserInfoData(r *http.Request) handlers.UserInfoData {
 	data.WebAuthnURL = urlutil.WebAuthnURL(r, urlutil.GetAbsoluteURL(r), state.sharedKey, r.URL.Query())
 	p.fillEnterpriseUserInfoData(r.Context(), &data)
 	return data
-}
-
-func (p *Proxy) getPortalUserInfo(r *http.Request) portal.UserInfo {
-	u := p.getUserInfoData(r)
-	pu := portal.UserInfo{}
-	pu.SessionID = u.Session.GetId()
-	pu.UserID = u.User.GetId()
-	pu.Email = u.User.GetEmail()
-	for _, dg := range u.DirectoryGroups {
-		if v := dg.ID; v != "" {
-			pu.Groups = append(pu.Groups, dg.ID)
-		}
-		if v := dg.Name; v != "" {
-			pu.Groups = append(pu.Groups, dg.Name)
-		}
-	}
-	return pu
 }
 
 func (p *Proxy) fillEnterpriseUserInfoData(ctx context.Context, data *handlers.UserInfoData) {

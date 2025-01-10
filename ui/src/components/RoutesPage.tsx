@@ -8,6 +8,7 @@ import {
 import React, { FC } from "react";
 
 import { Route, RoutesPageData } from "../types";
+import SidebarPage from "./SidebarPage";
 
 type RouteCardProps = {
   route: Route;
@@ -29,15 +30,15 @@ type RoutesPageProps = {
 };
 const RoutesPage: FC<RoutesPageProps> = ({ data }) => {
   return (
-    <>
+    <SidebarPage>
       <Grid container spacing={2} justifyContent="center">
         {data?.routes?.map((r) => (
-          <Grid item sx={{ width: 300 }}>
+          <Grid key={r.id} item sx={{ width: 300 }}>
             <RouteCard route={r} />
           </Grid>
         ))}
       </Grid>
-    </>
+    </SidebarPage>
   );
 };
 export default RoutesPage;

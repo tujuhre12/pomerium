@@ -119,10 +119,11 @@ export type Route = {
   logo_url: string;
 };
 
-export type RoutesPageData = BasePageData & {
-  page: "Routes";
-  routes: Route[];
-};
+export type RoutesPageData = BasePageData &
+  UserInfoData & {
+    page: "Routes";
+    routes: Route[];
+  };
 
 export type SignOutConfirmPageData = BasePageData & {
   page: "SignOutConfirm";

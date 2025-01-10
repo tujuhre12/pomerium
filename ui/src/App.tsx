@@ -66,12 +66,14 @@ const App: FC = () => {
       link.style.display = data?.faviconUrl ? "none" : "";
     }
   }, []);
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <SubpageContextProvider page={data?.page}>
-        <Header includeSidebar={data?.page === "UserInfo"} data={data} />
+        <Header
+          includeSidebar={data?.page === "UserInfo" || data?.page === "Routes"}
+          data={data}
+        />
         <ToolbarOffset />
         <Box sx={{ overflow: "hidden", height: "calc(100vh - 120px)" }}>
           <Box
