@@ -15,8 +15,8 @@ func TestHash(t *testing.T) {
 		want    uint64
 		wantErr bool
 	}{
-		{"string", "string", 6134271061086542852, false},
-		{"num", 7, 609900476111905877, false},
+		{"string", "string", 15613163272824911089, false},
+		{"num", 7, 9324454920402081455, false},
 		{
 			"compound struct",
 			struct {
@@ -26,7 +26,7 @@ func TestHash(t *testing.T) {
 				[]string{"Battletoads", "Mega Man 1", "Clash at Demonhead"},
 				12,
 			},
-			1349584765528830812, false,
+			9585735524299267794, false,
 		},
 		{
 			"compound struct with embedded func (errors!)",

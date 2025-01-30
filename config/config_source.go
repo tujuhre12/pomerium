@@ -3,11 +3,11 @@ package config
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
-	"github.com/cespare/xxhash/v2"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
@@ -136,15 +136,24 @@ func NewFileOrEnvironmentSource(
 	}
 	if configFile != "" {
 		if cfg.Options.IsRuntimeFlagSet(RuntimeFlagConfigHotReload) {
-			src.watcher.Watch(ctx, []string{configFile})
+			src.watcher.Watch([]string{configFile})
 		} else {
 			log.Ctx(ctx).Info().Msg("hot reload disabled")
-			src.watcher.Watch(ctx, nil)
+			src.watcher.Watch(nil)
 		}
 	}
 	ch := src.watcher.Bind()
 	go func() {
 		for range ch {
+			src.check(ctx)
+		}
+	}()
+
+	sch := make(chan os.Signal, 1)
+	signal.Notify(sch, syscall.SIGHUP)
+	go func() {
+		for range sch {
+			log.Ctx(ctx).Info().Msg("received SIGHUP, reloading config")
 			src.check(ctx)
 		}
 	}()
@@ -189,9 +198,8 @@ type FileWatcherSource struct {
 	underlying Source
 	watcher    *fileutil.Watcher
 
-	mu   sync.RWMutex
-	hash uint64
-	cfg  *Config
+	mu  sync.RWMutex
+	cfg *Config
 
 	ChangeDispatcher
 }
@@ -230,9 +238,9 @@ func (src *FileWatcherSource) GetConfig() *Config {
 func (src *FileWatcherSource) onConfigChange(ctx context.Context, cfg *Config) {
 	// update the file watcher with paths from the config
 	if cfg.Options.IsRuntimeFlagSet(RuntimeFlagConfigHotReload) {
-		src.watcher.Watch(ctx, getAllConfigFilePaths(cfg))
+		src.watcher.Watch(getAllConfigFilePaths(cfg))
 	} else {
-		src.watcher.Watch(ctx, nil)
+		src.watcher.Watch(nil)
 	}
 
 	src.mu.Lock()
@@ -240,8 +248,7 @@ func (src *FileWatcherSource) onConfigChange(ctx context.Context, cfg *Config) {
 
 	// store the config and trigger an update
 	src.cfg = cfg.Clone()
-	src.hash = getAllConfigFilePathsHash(src.cfg)
-	log.Ctx(ctx).Info().Uint64("hash", src.hash).Msg("config/filewatchersource: underlying config change, triggering update")
+	log.Ctx(ctx).Info().Msg("config/filewatchersource: underlying config change, triggering update")
 	src.Trigger(ctx, src.cfg)
 }
 
@@ -249,31 +256,8 @@ func (src *FileWatcherSource) onFileChange(ctx context.Context) {
 	src.mu.Lock()
 	defer src.mu.Unlock()
 
-	hash := getAllConfigFilePathsHash(src.cfg)
-
-	if hash == src.hash {
-		log.Ctx(ctx).Info().Uint64("hash", src.hash).Msg("config/filewatchersource: no change detected")
-	} else {
-		// if the hash changed, trigger an update
-		// the actual config will be identical
-		src.hash = hash
-		log.Ctx(ctx).Info().Uint64("hash", src.hash).Msg("config/filewatchersource: change detected, triggering update")
-		src.Trigger(ctx, src.cfg)
-	}
-}
-
-func getAllConfigFilePathsHash(cfg *Config) uint64 {
-	// read all the config files and build a hash from their contents
-	h := xxhash.New()
-	for _, f := range getAllConfigFilePaths(cfg) {
-		_, _ = h.Write([]byte{0})
-		f, err := os.Open(f)
-		if err == nil {
-			_, _ = io.Copy(h, f)
-			_ = f.Close()
-		}
-	}
-	return h.Sum64()
+	log.Ctx(ctx).Info().Msg("config/filewatchersource: change detected, triggering update")
+	src.Trigger(ctx, src.cfg)
 }
 
 func getAllConfigFilePaths(cfg *Config) []string {

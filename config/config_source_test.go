@@ -5,11 +5,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/internal/testutil"
 )
 
 func TestFileWatcherSource(t *testing.T) {
@@ -179,26 +187,43 @@ runtime_flags:
 			}
 
 			require.Empty(t, ch, "expected exactly one OnConfigChange event")
-
-			// the file watcher checks modification time, not contents
-			err = os.Chtimes(configFilePath, time.Now(), time.Now())
-			require.NoError(t, err)
-
-			select {
-			case <-ch:
-				if !enabled {
-					t.Error("expected OnConfigChange not to be fired after triggering a change to the underlying source")
-				}
-			case <-time.After(time.Second):
-				if enabled {
-					t.Error("expected OnConfigChange to be fired after triggering a change to the underlying source")
-				}
-			}
-
-			require.Empty(t, ch, "expected exactly one OnConfigChange event")
 		}
 	}
 
 	t.Run("Hot Reload Enabled", newTest(true))
 	t.Run("Hot Reload Disabled", newTest(false))
+
+	t.Run("SIGHUP", func(t *testing.T) {
+		t.Parallel()
+
+		ready := signal.New()
+		readyCh := ready.Bind()
+
+		ctx := testutil.GetContext(t, time.Minute)
+		var hookMU sync.Mutex
+		ctx = log.Ctx(ctx).Hook(zerolog.HookFunc(func(_ *zerolog.Event, _ zerolog.Level, message string) {
+			hookMU.Lock()
+			defer hookMU.Unlock()
+
+			t.Log(message)
+			if strings.Contains(message, "received SIGHUP") {
+				ready.Broadcast(ctx)
+			}
+		})).WithContext(ctx)
+		tmp := t.TempDir()
+
+		cfgFP := filepath.Join(tmp, "config.json")
+		require.NoError(t, os.WriteFile(cfgFP, []byte(`{}`), 0o600))
+
+		_, err := NewFileOrEnvironmentSource(ctx, cfgFP, "")
+		assert.NoError(t, err)
+
+		require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGHUP))
+
+		select {
+		case <-ctx.Done():
+			t.Error("expected to receive SIGHUP log message")
+		case <-readyCh:
+		}
+	})
 }
