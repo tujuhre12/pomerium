@@ -148,7 +148,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 120.
+// Next ID: 137.
 message Settings {
   message Certificate {
     bytes cert_bytes = 3;
@@ -257,6 +257,7 @@ message Settings {
   optional string error_message_first_paragraph = 91;
   optional bool pass_identity_headers = 117;
   map<string, bool> runtime_flags = 118;
+  optional uint32 http3_advertise_port = 136;
 }
 
 message DownstreamMtlsSettings {

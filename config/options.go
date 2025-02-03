@@ -297,6 +297,8 @@ type Options struct {
 	PassIdentityHeaders *bool `mapstructure:"pass_identity_headers" yaml:"pass_identity_headers"`
 
 	RuntimeFlags RuntimeFlags `mapstructure:"runtime_flags" yaml:"runtime_flags,omitempty"`
+
+	HTTP3AdvertisePort null.Uint32 `mapstructure:"-" yaml:"-" json:"-"`
 }
 
 type certificateFilePair struct {
@@ -1566,6 +1568,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	copyMap(&o.RuntimeFlags, settings.RuntimeFlags, func(k string, v bool) (RuntimeFlag, bool) {
 		return RuntimeFlag(k), v
 	})
+	o.HTTP3AdvertisePort = null.Uint32FromPtr(settings.Http3AdvertisePort)
 }
 
 func (o *Options) ToProto() *config.Config {
@@ -1673,6 +1676,7 @@ func (o *Options) ToProto() *config.Config {
 	copyMap(&settings.RuntimeFlags, o.RuntimeFlags, func(k RuntimeFlag, v bool) (string, bool) {
 		return string(k), v
 	})
+	settings.Http3AdvertisePort = o.HTTP3AdvertisePort.Ptr()
 
 	routes := make([]*config.Route, 0, o.NumPolicies())
 	for p := range o.GetAllPolicies() {
