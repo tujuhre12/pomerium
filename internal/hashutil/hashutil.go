@@ -40,6 +40,14 @@ func NewDigest() *Digest {
 	return &d
 }
 
+// NewDigestWithSeed creates a new digest using the given seed.
+func NewDigestWithSeed(seed uint64) *Digest {
+	var d Digest
+	d.Hasher = *xxh3.NewSeed(seed)
+	d.Reset()
+	return &d
+}
+
 // WriteStringWithLen writes the string's length, then its contents to the hash.
 func (d *Digest) WriteStringWithLen(s string) {
 	d.WriteInt32(int32(len(s)))

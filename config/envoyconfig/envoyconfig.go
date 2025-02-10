@@ -2,7 +2,6 @@
 package envoyconfig
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -26,7 +25,6 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -189,27 +187,6 @@ func getRootCertificateAuthority(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("root certificates not found")
 	}
 	return rootCABundle.value, nil
-}
-
-func getCombinedCertificateAuthority(ctx context.Context, cfg *config.Config) ([]byte, error) {
-	rootFile, err := getRootCertificateAuthority(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var buf bytes.Buffer
-	if err := fileutil.CopyFileUpTo(&buf, rootFile, 5<<20); err != nil {
-		return nil, fmt.Errorf("error reading root certificates: %w", err)
-	}
-	buf.WriteRune('\n')
-
-	all, err := cfg.AllCertificateAuthoritiesPEM()
-	if err != nil {
-		return nil, fmt.Errorf("get all CA: %w", err)
-	}
-	buf.Write(all)
-
-	return buf.Bytes(), nil
 }
 
 func marshalAny(msg proto.Message) *anypb.Any {

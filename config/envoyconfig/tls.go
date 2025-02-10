@@ -20,6 +20,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
@@ -350,4 +351,26 @@ func (b *Builder) buildDownstreamValidationContext(
 	dtc.CommonTlsContext.ValidationContextType = &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 		ValidationContext: vc,
 	}
+}
+
+func (b *Builder) buildTrustedCA(ctx context.Context, cfg *config.Config) *envoy_config_core_v3.DataSource {
+	rootFile, err := getRootCertificateAuthority(ctx)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
+		return nil
+	}
+
+	src, err := cfg.AllCertificateAuthoritiesSource()
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("unable to enable certificate verification, invalid config")
+		return nil
+	}
+
+	ds, err := b.filemgr.DataSource(filemgr.MultiSource("ca.pem", []byte{'\n'}, filemgr.FileSource(rootFile), src))
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("unable to enable certificate verification, error loading CAs")
+		return nil
+	}
+
+	return ds
 }

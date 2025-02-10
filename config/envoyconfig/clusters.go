@@ -239,12 +239,7 @@ func (b *Builder) buildInternalTransportSocket(
 		MatchTypedSubjectAltNames: []*envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher{
 			b.buildSubjectAltNameMatcher(endpoint, cfg.Options.OverrideCertificateName),
 		},
-	}
-	bs, err := getCombinedCertificateAuthority(ctx, cfg)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
-	} else {
-		validationContext.TrustedCa = b.filemgr.BytesDataSource("ca.pem", bs)
+		TrustedCa: b.buildTrustedCA(ctx, cfg),
 	}
 	tlsContext := &envoy_extensions_transport_sockets_tls_v3.UpstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
@@ -340,12 +335,7 @@ func (b *Builder) buildPolicyValidationContext(
 		}
 		validationContext.TrustedCa = b.filemgr.BytesDataSource("custom-ca.pem", bs)
 	} else {
-		bs, err := getCombinedCertificateAuthority(ctx, cfg)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
-		} else {
-			validationContext.TrustedCa = b.filemgr.BytesDataSource("ca.pem", bs)
-		}
+		validationContext.TrustedCa = b.buildTrustedCA(ctx, cfg)
 	}
 
 	if policy.TLSSkipVerify {

@@ -2,6 +2,7 @@
 package filemgr
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -31,6 +32,52 @@ func (mgr *Manager) init() {
 	mgr.initOnce.Do(func() {
 		mgr.initErr = os.MkdirAll(mgr.cfg.cacheDir, 0o700)
 	})
+}
+
+// DataSource returns an envoy config data source from the given source.
+func (mgr *Manager) DataSource(source Source) (*envoy_config_core_v3.DataSource, error) {
+	mgr.init()
+	if mgr.initErr != nil {
+		return nil, fmt.Errorf("filemgr: error creating cache directory: %w", mgr.initErr)
+	}
+
+	n, err := source.Checksum()
+	if err != nil {
+		return nil, fmt.Errorf("filemgr: error computing checksum: %w", err)
+	}
+
+	fileName := GetFileNameWithChecksum(source.FileName(), n)
+	filePath := filepath.Join(mgr.cfg.cacheDir, fileName)
+
+	// write file if it doesn't exist
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		tmpFilePath := filePath + ".tmp"
+		f, err := os.Create(tmpFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("filemgr: error creating temporary file: %w", err)
+		}
+
+		_, err = source.WriteTo(f)
+		if err != nil {
+			_ = f.Close()
+			return nil, fmt.Errorf("filemgr: error writing temporary file: %w", err)
+		}
+
+		err = f.Close()
+		if err != nil {
+			return nil, fmt.Errorf("filemgr: error closing temporary file: %w", err)
+		}
+
+		err = os.Rename(tmpFilePath, filePath)
+		if err != nil {
+			_ = os.Remove(tmpFilePath) // delete the temporary file
+			return nil, fmt.Errorf("filemgr: error renaming temporary file: %w", err)
+		}
+	} else if err != nil {
+		return nil, fmt.Errorf("filemgr: error reading cache file: %w", err)
+	}
+
+	return inlineFilename(filePath), nil
 }
 
 // BytesDataSource returns an envoy config data source based on bytes.

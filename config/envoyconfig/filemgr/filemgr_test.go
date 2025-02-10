@@ -7,6 +7,7 @@ import (
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test(t *testing.T) {
@@ -49,4 +50,47 @@ func Test(t *testing.T) {
 
 		mgr.ClearCache()
 	})
+}
+
+func Test_Source(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "test1.txt"), []byte("TEST-1"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "test3.txt"), []byte("TEST-3"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "test5.txt"), []byte("TEST-5"), 0o600))
+
+	src := MultiSource("combined.txt", []byte{'|'},
+		FileSource(filepath.Join(dir, "test1.txt")),
+		BytesSource("test2.txt", []byte("TEST-2")),
+		FileSource(filepath.Join(dir, "test3.txt")),
+		BytesSource("test4.txt", []byte("TEST-4")),
+		FileSource(filepath.Join(dir, "test5.txt")),
+	)
+	n, err := src.Checksum()
+	assert.NoError(t, err)
+
+	combinedFilePath := filepath.Join(dir, GetFileNameWithChecksum("combined.txt", n))
+
+	mgr := NewManager(WithCacheDir(dir))
+	ds, err := mgr.DataSource(src)
+	assert.NoError(t, err)
+	assert.Equal(t, &envoy_config_core_v3.DataSource{
+		Specifier: &envoy_config_core_v3.DataSource_Filename{
+			Filename: combinedFilePath,
+		},
+	}, ds)
+
+	ds, err = mgr.DataSource(src)
+	assert.NoError(t, err)
+	assert.Equal(t, &envoy_config_core_v3.DataSource{
+		Specifier: &envoy_config_core_v3.DataSource_Filename{
+			Filename: combinedFilePath,
+		},
+	}, ds)
+
+	bs, err := os.ReadFile(combinedFilePath)
+	assert.NoError(t, err)
+	assert.Equal(t, "TEST-1|TEST-2|TEST-3|TEST-4|TEST-5", string(bs))
 }

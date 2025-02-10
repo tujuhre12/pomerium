@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -85,6 +86,28 @@ func (cfg *Config) Clone() *Config {
 		DerivedCertificates: cfg.DerivedCertificates,
 		DerivedCAPEM:        cfg.DerivedCAPEM,
 	}
+}
+
+// AllCertificateAuthoritiesSource returns a filemgr source from the certificate authorities.
+func (cfg *Config) AllCertificateAuthoritiesSource() (filemgr.Source, error) {
+	var sources []filemgr.Source
+	if cfg.Options.CA != "" {
+		bs, err := base64.StdEncoding.DecodeString(cfg.Options.CA)
+		if err != nil {
+			return nil, err
+		}
+		sources = append(sources, filemgr.BytesSource("ca.pem", bs))
+	}
+
+	if cfg.Options.CAFile != "" {
+		sources = append(sources, filemgr.FileSource(cfg.Options.CAFile))
+	}
+
+	if cfg.DerivedCAPEM != nil {
+		sources = append(sources, filemgr.BytesSource("ca.pem", cfg.DerivedCAPEM))
+	}
+
+	return filemgr.MultiSource("ca.pem", []byte("\n"), sources...), nil
 }
 
 // AllCertificateAuthoritiesPEM returns all CAs as PEM bundle bytes

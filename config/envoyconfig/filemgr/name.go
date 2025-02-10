@@ -16,3 +16,11 @@ func GetFileNameWithBytesHash(base string, data []byte) string {
 	ext := filepath.Ext(base)
 	return fmt.Sprintf("%s-%x%s", base[:len(base)-len(ext)], he, ext)
 }
+
+// GetFileNameWithChecksum constructs a filename using a base filename and a checksum.
+// For example: GetFileNameWithBytesHash("example.txt", 1234) ==> "example-1234.txt"
+func GetFileNameWithChecksum(base string, checksum uint64) string {
+	he := base36.Encode(checksum)
+	ext := filepath.Ext(base)
+	return fmt.Sprintf("%s-%x%s", base[:len(base)-len(ext)], he, ext)
+}

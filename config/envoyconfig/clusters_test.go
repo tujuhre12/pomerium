@@ -39,15 +39,13 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	customCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-3133535332543131503345494c.pem")
 
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
-	rootCABytes, _ := getCombinedCertificateAuthority(ctx, &config.Config{Options: &config.Options{}})
-	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
+	rootCA := b.buildTrustedCA(ctx, &config.Config{Options: &config.Options{}})
 
 	o1 := config.NewDefaultOptions()
 	o2 := config.NewDefaultOptions()
 	o2.CA = base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0})
 
-	combinedCABytes, _ := getCombinedCertificateAuthority(ctx, &config.Config{Options: &config.Options{CA: o2.CA}})
-	combinedCA := b.filemgr.BytesDataSource("ca.pem", combinedCABytes).GetFilename()
+	combinedCA := b.buildTrustedCA(ctx, &config.Config{Options: &config.Options{CA: o2.CA}})
 
 	t.Run("insecure", func(t *testing.T) {
 		ts, err := b.buildPolicyTransportSocket(ctx, &config.Config{Options: o1}, &config.Policy{
@@ -102,7 +100,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								}
 							}],
 							"trustedCa": {
-								"filename": "`+rootCA+`"
+								"filename": "`+rootCA.GetFilename()+`"
 							}
 						}
 					},
@@ -158,7 +156,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								}
 							}],
 							"trustedCa": {
-								"filename": "`+rootCA+`"
+								"filename": "`+rootCA.GetFilename()+`"
 							}
 						}
 					},
@@ -214,7 +212,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								}
 							}],
 							"trustedCa": {
-								"filename": "`+rootCA+`"
+								"filename": "`+rootCA.GetFilename()+`"
 							}
 						}
 					},
@@ -270,7 +268,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								}
 							}],
 							"trustedCa": {
-								"filename": "`+rootCA+`"
+								"filename": "`+rootCA.GetFilename()+`"
 							},
 							"trustChainVerification": "ACCEPT_UNTRUSTED"
 						}
@@ -382,7 +380,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								}
 							}],
 							"trustedCa": {
-								"filename": "`+combinedCA+`"
+								"filename": "`+combinedCA.GetFilename()+`"
 							}
 						}
 					},
@@ -447,7 +445,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								}
 							}],
 							"trustedCa": {
-								"filename": "`+rootCA+`"
+								"filename": "`+rootCA.GetFilename()+`"
 							}
 						}
 					},
@@ -504,7 +502,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								}
 							}],
 							"trustedCa": {
-								"filename": "`+rootCA+`"
+								"filename": "`+rootCA.GetFilename()+`"
 							}
 						}
 					},
@@ -518,8 +516,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 func Test_buildCluster(t *testing.T) {
 	ctx := context.Background()
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
-	rootCABytes, _ := getCombinedCertificateAuthority(ctx, &config.Config{Options: &config.Options{}})
-	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
+	rootCA := b.buildTrustedCA(ctx, &config.Config{Options: &config.Options{}})
 	o1 := config.NewDefaultOptions()
 	t.Run("insecure", func(t *testing.T) {
 		endpoints, err := b.buildPolicyEndpoints(ctx, &config.Config{Options: o1}, &config.Policy{
@@ -643,7 +640,7 @@ func Test_buildCluster(t *testing.T) {
 										}
 									}],
 									"trustedCa": {
-										"filename": "`+rootCA+`"
+										"filename": "`+rootCA.GetFilename()+`"
 									}
 								}
 							},
@@ -691,7 +688,7 @@ func Test_buildCluster(t *testing.T) {
 									}
 								}],
 								"trustedCa": {
-									"filename": "`+rootCA+`"
+									"filename": "`+rootCA.GetFilename()+`"
 								}
 							}
 						},
