@@ -3,6 +3,7 @@ package authorize
 import (
 	"context"
 	"encoding/pem"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -44,26 +45,29 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	requestID := requestid.FromHTTPHeader(hreq.Header)
 	ctx = requestid.WithValue(ctx, requestID)
 
-	sessionState, _ := state.sessionStore.LoadSessionStateAndCheckIDP(hreq)
-
 	var s sessionOrServiceAccount
 	var u *user.User
-	var err error
-	if sessionState != nil {
-		s, err = a.getDataBrokerSessionOrServiceAccount(ctx, sessionState.ID, sessionState.DatabrokerRecordVersion)
-		if status.Code(err) == codes.Unavailable {
-			log.Ctx(ctx).Debug().Str("request-id", requestID).Err(err).Msg("temporary error checking authorization: data broker unavailable")
-			return nil, err
-		} else if err != nil {
-			log.Ctx(ctx).Info().Err(err).Str("request-id", requestID).Msg("clearing session due to missing or invalid session or service account")
-			sessionState = nil
+	if sess, err := a.state.Load().idpTokensLoader.LoadSession(hreq); err == nil {
+		s = sess
+	} else if !errors.Is(err, sessions.ErrNoSessionFound) {
+		log.Ctx(ctx).Info().Err(err).Str("request-id", requestID).Msg("error verifying idp tokens")
+	} else {
+		sessionState, _ := state.sessionStore.LoadSessionStateAndCheckIDP(hreq)
+		if sessionState != nil {
+			s, err = a.getDataBrokerSessionOrServiceAccount(ctx, sessionState.ID, sessionState.DatabrokerRecordVersion)
+			if status.Code(err) == codes.Unavailable {
+				log.Ctx(ctx).Debug().Str("request-id", requestID).Err(err).Msg("temporary error checking authorization: data broker unavailable")
+				return nil, err
+			} else if err != nil {
+				log.Ctx(ctx).Info().Err(err).Str("request-id", requestID).Msg("clearing session due to missing or invalid session or service account")
+			}
 		}
 	}
-	if sessionState != nil && s != nil {
+	if s != nil {
 		u, _ = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
 	}
 
-	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in, sessionState)
+	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in, s.GetId())
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("error building evaluator request")
 		return nil, err
@@ -91,7 +95,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
-	sessionState *sessions.State,
+	sessionID string,
 ) (*evaluator.Request, error) {
 	requestURL := getCheckRequestURL(in)
 	attrs := in.GetAttributes()
@@ -106,9 +110,9 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 			attrs.GetSource().GetAddress().GetSocketAddress().GetAddress(),
 		),
 	}
-	if sessionState != nil {
+	if sessionID != "" {
 		req.Session = evaluator.RequestSession{
-			ID: sessionState.ID,
+			ID: sessionID,
 		}
 	}
 	req.Policy = a.getMatchingPolicy(envoyconfig.ExtAuthzContextExtensionsRouteID(attrs.GetContextExtensions()))

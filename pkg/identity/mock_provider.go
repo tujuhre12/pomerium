@@ -2,6 +2,7 @@ package identity
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"golang.org/x/oauth2"
@@ -54,4 +55,12 @@ func (mp MockProvider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ s
 // SignIn is a mocked providers function.
 func (mp MockProvider) SignIn(_ http.ResponseWriter, _ *http.Request, _ string) error {
 	return mp.SignInError
+}
+
+func (mp MockProvider) VerifyAccessToken(_ context.Context, _ string) (map[string]any, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (mp MockProvider) VerifyIdentityToken(_ context.Context, _ string) (map[string]any, error) {
+	return nil, fmt.Errorf("not implemented")
 }

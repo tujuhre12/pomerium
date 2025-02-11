@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -95,6 +96,8 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	// routes that don't need a session:
 	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
 	sr.Path("/signed_out").Handler(httputil.HandlerFunc(a.signedOut)).Methods(http.MethodGet)
+	sr.Path("/verify-access-token").Handler(httputil.HandlerFunc(a.verifyAccessToken)).Methods(http.MethodPost)
+	sr.Path("/verify-identity-token").Handler(httputil.HandlerFunc(a.verifyIdentityToken)).Methods(http.MethodPost)
 
 	// routes that need a session:
 	sr = sr.NewRoute().Subrouter()
@@ -567,4 +570,84 @@ func (a *Authenticate) getIdentityProviderIDForRequest(r *http.Request) string {
 		return ""
 	}
 	return a.state.Load().flow.GetIdentityProviderIDForURLValues(r.Form)
+}
+
+type VerifyAccessTokenRequest struct {
+	AccessToken        string `json:"accessToken"`
+	IdentityProviderID string `json:"identityProviderId,omitempty"`
+}
+
+type VerifyIdentityTokenRequest struct {
+	IdentityToken      string `json:"identityToken"`
+	IdentityProviderID string `json:"identityProviderId,omitempty"`
+}
+
+type VerifyTokenResponse struct {
+	Valid  bool           `json:"valid"`
+	Error  string         `json:"error,omitempty"`
+	Claims map[string]any `json:"claims,omitempty"`
+}
+
+func (a *Authenticate) verifyAccessToken(w http.ResponseWriter, r *http.Request) error {
+	// TODO: implement authorization
+
+	var req VerifyAccessTokenRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+
+	authenticator, err := a.cfg.getIdentityProvider(r.Context(), a.tracerProvider, a.options.Load(), req.IdentityProviderID)
+	if err != nil {
+		return err
+	}
+
+	var res VerifyTokenResponse
+	claims, err := authenticator.VerifyAccessToken(r.Context(), req.AccessToken)
+	if err == nil {
+		res.Valid = true
+		res.Claims = claims
+	} else {
+		res.Valid = false
+		res.Error = err.Error()
+	}
+
+	err = json.NewEncoder(w).Encode(&res)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Authenticate) verifyIdentityToken(w http.ResponseWriter, r *http.Request) error {
+	// TODO: implement authorization
+
+	var req VerifyIdentityTokenRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+
+	authenticator, err := a.cfg.getIdentityProvider(r.Context(), a.tracerProvider, a.options.Load(), req.IdentityProviderID)
+	if err != nil {
+		return err
+	}
+
+	var res VerifyTokenResponse
+	claims, err := authenticator.VerifyIdentityToken(r.Context(), req.IdentityToken)
+	if err == nil {
+		res.Valid = true
+		res.Claims = claims
+	} else {
+		res.Valid = false
+		res.Error = err.Error()
+	}
+
+	err = json.NewEncoder(w).Encode(&res)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

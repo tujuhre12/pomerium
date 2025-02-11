@@ -360,3 +360,48 @@ func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, 
 	httputil.Redirect(w, r, endSessionURL.String(), http.StatusFound)
 	return nil
 }
+
+// VerifyAccessToken verifies a raw access token using the oidc UserInfo endpoint.
+func (p *Provider) VerifyAccessToken(ctx context.Context, rawAccessToken string) (claims map[string]any, err error) {
+	pp, err := p.GetProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	userInfo, err := pp.UserInfo(ctx, oauth2.StaticTokenSource(&oauth2.Token{
+		AccessToken: rawAccessToken,
+		TokenType:   "Bearer",
+	}))
+	if err != nil {
+		return nil, err
+	}
+
+	claims = map[string]any{}
+	err = userInfo.Claims(claims)
+	if err != nil {
+		return nil, err
+	}
+
+	return claims, nil
+}
+
+// VerifyIdentityToken verifies a raw identity token using the oidc ID Token Verifier.
+func (p *Provider) VerifyIdentityToken(ctx context.Context, rawIdentityToken string) (claims map[string]any, err error) {
+	verifier, err := p.GetVerifier()
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := verifier.Verify(ctx, rawIdentityToken)
+	if err != nil {
+		return nil, err
+	}
+
+	claims = map[string]any{}
+	err = token.Claims(claims)
+	if err != nil {
+		return nil, err
+	}
+
+	return claims, nil
+}

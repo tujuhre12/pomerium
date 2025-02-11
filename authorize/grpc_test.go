@@ -18,7 +18,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -88,9 +87,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 				},
 			},
 		},
-		&sessions.State{
-			ID: "SESSION_ID",
-		},
+		"SESSION_ID",
 	)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
@@ -145,7 +142,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 					},
 				},
 			},
-		}, nil)
+		}, "")
 	require.NoError(t, err)
 	expect := &evaluator.Request{
 		Policy:  &a.currentOptions.Load().Policies[0],

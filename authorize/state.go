@@ -13,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
+	"github.com/pomerium/pomerium/internal/sessions/idptokens"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
@@ -30,6 +31,7 @@ type authorizeState struct {
 	dataBrokerClient           databroker.DataBrokerServiceClient
 	sessionStore               *config.SessionStore
 	authenticateFlow           authenticateFlow
+	idpTokensLoader            *idptokens.Loader
 }
 
 func newAuthorizeStateFromConfig(
@@ -87,6 +89,8 @@ func newAuthorizeStateFromConfig(
 	if err != nil {
 		return nil, err
 	}
+
+	state.idpTokensLoader = idptokens.NewLoader(cfg.Options, state.dataBrokerClient)
 
 	return state, nil
 }

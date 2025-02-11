@@ -1,7 +1,11 @@
 package httputil
 
-// AuthorizationTypePomerium is for Authorization: Pomerium JWT... headers
-const AuthorizationTypePomerium = "Pomerium"
+// Authorization types
+const (
+	AuthorizationTypePomerium                 = "Pomerium"
+	AuthorizationTypePomeriumIDPAccessToken   = "Pomerium-IDP-Access-Token"   //nolint: gosec
+	AuthorizationTypePomeriumIDPIdentityToken = "Pomerium-IDP-Identity-Token" //nolint: gosec
+)
 
 // Standard headers
 const (
@@ -32,6 +36,10 @@ const (
 	HeaderPomeriumReproxyPolicyHMAC = "x-pomerium-reproxy-policy-hmac"
 	// HeaderPomeriumRoutingKey is a string used for routing user requests to a consistent upstream server.
 	HeaderPomeriumRoutingKey = "x-pomerium-routing-key"
+	// HeaderPomeriumIDPAccessToken is the header key for a pomerium access token.
+	HeaderPomeriumIDPAccessToken = "x-pomerium-idp-access-token"
+	// HeaderPomeriumIDPIdentityToken is the header key for a pomerium identity token.
+	HeaderPomeriumIDPIdentityToken = "x-pomerium-idp-identity-token"
 )
 
 // HeadersContentSecurityPolicy are the content security headers added to the service's handlers

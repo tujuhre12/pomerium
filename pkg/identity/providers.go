@@ -10,6 +10,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/oauth2"
 
+	oteltrace "go.opentelemetry.io/otel/trace"
+
 	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
@@ -23,7 +25,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity/oidc/okta"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/onelogin"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/ping"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // State is the identity state.
@@ -36,6 +37,8 @@ type Authenticator interface {
 	Revoke(context.Context, *oauth2.Token) error
 	Name() string
 	UpdateUserInfo(ctx context.Context, t *oauth2.Token, v any) error
+	VerifyAccessToken(ctx context.Context, rawAccessToken string) (claims map[string]any, err error)
+	VerifyIdentityToken(ctx context.Context, rawIdentityToken string) (claims map[string]any, err error)
 
 	SignIn(w http.ResponseWriter, r *http.Request, state string) error
 	SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, authenticateSignedOutURL, redirectToURL string) error
