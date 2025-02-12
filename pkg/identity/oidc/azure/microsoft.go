@@ -10,8 +10,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
+	"strings"
 
 	go_oidc "github.com/coreos/go-oidc/v3/oidc"
+	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
@@ -73,6 +76,52 @@ func (p *Provider) Name() string {
 	return Name
 }
 
+// VerifyAccessToken verifies a raw access token using the oidc UserInfo endpoint.
+func (p *Provider) VerifyAccessToken(ctx context.Context, rawAccessToken string) (claims map[string]any, err error) {
+	pp, err := p.GetProvider()
+	if err != nil {
+		return nil, fmt.Errorf("error getting oidc provider: %w", err)
+	}
+
+	verifier := pp.Verifier(&go_oidc.Config{
+		SkipClientIDCheck: true,
+		SkipIssuerCheck:   true, // checked later
+	})
+
+	token, err := verifier.Verify(ctx, rawAccessToken)
+	if err != nil {
+		return nil, fmt.Errorf("error verifying access token: %w", err)
+	}
+
+	claims = map[string]any{}
+	err = token.Claims(&claims)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling access token claims: %w", err)
+	}
+
+	err = verifyIssuer(pp, claims)
+	if err != nil {
+		return nil, fmt.Errorf("error verifying access token issuer claim: %w", err)
+	}
+
+	if scope, ok := claims["scp"].(string); ok && slices.Contains(strings.Fields(scope), "openid") {
+		userInfo, err := pp.UserInfo(ctx, oauth2.StaticTokenSource(&oauth2.Token{
+			TokenType:   "Bearer",
+			AccessToken: rawAccessToken,
+		}))
+		if err != nil {
+			return nil, fmt.Errorf("error calling user info endpoint: %w", err)
+		}
+
+		err = userInfo.Claims(claims)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshaling user info claims: %w", err)
+		}
+	}
+
+	return claims, nil
+}
+
 // newProvider overrides the default round tripper for well-known endpoint call that happens
 // on new provider registration.
 // By default, the "common" (both public and private domains) responds with
@@ -127,4 +176,56 @@ func (transport *wellKnownConfiguration) RoundTrip(req *http.Request) (*http.Res
 
 	res.Body = io.NopCloser(bytes.NewReader(bs))
 	return res, nil
+}
+
+const (
+	v1IssuerPrefix = "https://sts.windows.net/"
+	v1IssuerSuffix = "/"
+	v2IssuerPrefix = "https://login.microsoftonline.com/"
+	v2IssuerSuffix = "/v2.0"
+)
+
+func verifyIssuer(pp *go_oidc.Provider, claims map[string]any) error {
+	tenantID, ok := getTenantIDFromURL(pp.Endpoint().TokenURL)
+	if !ok {
+		return fmt.Errorf("failed to find tenant id")
+	}
+
+	iss, ok := claims["iss"].(string)
+	if !ok {
+		return fmt.Errorf("missing issuer claim")
+	}
+
+	if !(iss == v1IssuerPrefix+tenantID+v1IssuerSuffix || iss == v2IssuerPrefix+tenantID+v2IssuerSuffix) {
+		return fmt.Errorf("invalid issuer: %s", iss)
+	}
+
+	return nil
+}
+
+func getTenantIDFromURL(rawTokenURL string) (string, bool) {
+	// URLs look like:
+	// - https://login.microsoftonline.com/f42bce3b-671c-4162-b24c-00ecc7641897/v2.0
+	// Or:
+	// - https://sts.windows.net/f42bce3b-671c-4162-b24c-00ecc7641897/
+	for _, prefix := range []string{v1IssuerPrefix, v2IssuerPrefix} {
+		path, ok := strings.CutPrefix(rawTokenURL, prefix)
+		if !ok {
+			continue
+		}
+
+		idx := strings.Index(path, "/")
+		if idx <= 0 {
+			continue
+		}
+
+		rawTenantID := path[:idx]
+		if _, err := uuid.Parse(rawTenantID); err != nil {
+			continue
+		}
+
+		return rawTenantID, true
+	}
+
+	return "", false
 }

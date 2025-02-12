@@ -45,6 +45,12 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	r.StrictSlash(true)
 	r.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 	r.Use(func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r = csrf.UnsafeSkipCheck(r)
+			h.ServeHTTP(w, r)
+		})
+	})
+	r.Use(func(h http.Handler) http.Handler {
 		options := a.options.Load()
 		state := a.state.Load()
 		csrfKey := fmt.Sprintf("%s_csrf", options.CookieName)

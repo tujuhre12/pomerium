@@ -26,14 +26,14 @@ var (
 
 // A Loader loads sessions from IdP access and identity tokens.
 type Loader struct {
-	options                 *config.Options
+	cfg                     *config.Config
 	dataBrokerServiceClient databroker.DataBrokerServiceClient
 }
 
 // NewLoader creates a new Loader.
-func NewLoader(options *config.Options, dataBrokerServiceClient databroker.DataBrokerServiceClient) *Loader {
+func NewLoader(cfg *config.Config, dataBrokerServiceClient databroker.DataBrokerServiceClient) *Loader {
 	return &Loader{
-		options:                 options,
+		cfg:                     cfg,
 		dataBrokerServiceClient: dataBrokerServiceClient,
 	}
 }
@@ -42,7 +42,7 @@ func NewLoader(options *config.Options, dataBrokerServiceClient databroker.DataB
 func (l *Loader) LoadSession(r *http.Request) (*session.Session, error) {
 	ctx := r.Context()
 
-	idp, err := l.options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
+	idp, err := l.cfg.Options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (l *Loader) loadSessionFromAccessToken(ctx context.Context, idp *identity.P
 		return nil, err
 	}
 
-	res, err := apiVerifyAccessToken(ctx, idp.GetAuthenticateServiceUrl(), &VerifyAccessTokenRequest{
+	res, err := apiVerifyAccessToken(ctx, l.cfg, &VerifyAccessTokenRequest{
 		AccessToken:        rawAccessToken,
 		IdentityProviderID: idp.GetId(),
 	})
@@ -121,7 +121,7 @@ func (l *Loader) loadSessionFromIdentityToken(ctx context.Context, idp *identity
 		return nil, err
 	}
 
-	res, err := apiVerifyIdentityToken(ctx, idp.GetAuthenticateServiceUrl(), &VerifyIdentityTokenRequest{
+	res, err := apiVerifyIdentityToken(ctx, l.cfg, &VerifyIdentityTokenRequest{
 		IdentityToken:      rawIdentityToken,
 		IdentityProviderID: idp.GetId(),
 	})

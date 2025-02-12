@@ -90,7 +90,7 @@ func newAuthorizeStateFromConfig(
 		return nil, err
 	}
 
-	state.idpTokensLoader = idptokens.NewLoader(cfg.Options, state.dataBrokerClient)
+	state.idpTokensLoader = idptokens.NewLoader(cfg, state.dataBrokerClient)
 
 	return state, nil
 }

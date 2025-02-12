@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/config"
 )
 
 // endpoints
@@ -39,11 +39,11 @@ type VerifyIdentityTokenRequest struct {
 
 func apiVerifyAccessToken(
 	ctx context.Context,
-	authenticateServiceURL string,
+	cfg *config.Config,
 	request *VerifyAccessTokenRequest,
 ) (*VerifyTokenResponse, error) {
 	var response VerifyTokenResponse
-	err := api(ctx, authenticateServiceURL, "verify-access-token", request, &response)
+	err := api(ctx, cfg, "verify-access-token", request, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -52,11 +52,11 @@ func apiVerifyAccessToken(
 
 func apiVerifyIdentityToken(
 	ctx context.Context,
-	authenticateServiceURL string,
+	cfg *config.Config,
 	request *VerifyIdentityTokenRequest,
 ) (*VerifyTokenResponse, error) {
 	var response VerifyTokenResponse
-	err := api(ctx, authenticateServiceURL, "verify-identity-token", request, &response)
+	err := api(ctx, cfg, "verify-identity-token", request, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -65,15 +65,15 @@ func apiVerifyIdentityToken(
 
 func api(
 	ctx context.Context,
-	authenticateServiceURL string,
+	cfg *config.Config,
 	endpoint string,
 	request, response any,
 ) error {
-	u, err := urlutil.ParseAndValidateURL(authenticateServiceURL)
+	authenticateURL, transport, err := cfg.ResolveAuthenticateURL()
 	if err != nil {
 		return fmt.Errorf("invalid authenticate service url: %w", err)
 	}
-	u = u.ResolveReference(&url.URL{
+	u := authenticateURL.ResolveReference(&url.URL{
 		Path: "/.pomerium/" + endpoint,
 	})
 
@@ -87,7 +87,9 @@ func api(
 		return fmt.Errorf("error creating %s http request: %w", endpoint, err)
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := (&http.Client{
+		Transport: transport,
+	}).Do(req)
 	if err != nil {
 		return fmt.Errorf("error executing %s http request: %w", endpoint, err)
 	}

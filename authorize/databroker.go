@@ -13,7 +13,6 @@ import (
 )
 
 type sessionOrServiceAccount interface {
-	GetId() string
 	GetUserId() string
 	Validate() error
 }

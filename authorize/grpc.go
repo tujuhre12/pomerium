@@ -45,10 +45,12 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	requestID := requestid.FromHTTPHeader(hreq.Header)
 	ctx = requestid.WithValue(ctx, requestID)
 
+	var sessionID string
 	var s sessionOrServiceAccount
 	var u *user.User
 	if sess, err := a.state.Load().idpTokensLoader.LoadSession(hreq); err == nil {
 		s = sess
+		sessionID = sess.GetId()
 	} else if !errors.Is(err, sessions.ErrNoSessionFound) {
 		log.Ctx(ctx).Info().Err(err).Str("request-id", requestID).Msg("error verifying idp tokens")
 	} else {
@@ -60,6 +62,8 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 				return nil, err
 			} else if err != nil {
 				log.Ctx(ctx).Info().Err(err).Str("request-id", requestID).Msg("clearing session due to missing or invalid session or service account")
+			} else {
+				sessionID = sessionState.ID
 			}
 		}
 	}
@@ -67,7 +71,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		u, _ = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
 	}
 
-	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in, s.GetId())
+	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in, sessionID)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("error building evaluator request")
 		return nil, err

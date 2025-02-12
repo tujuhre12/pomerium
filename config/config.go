@@ -215,7 +215,7 @@ func (cfg *Config) GetCertificatePool() (*x509.CertPool, error) {
 
 // GetAuthenticateKeyFetcher returns a key fetcher for the authenticate service
 func (cfg *Config) GetAuthenticateKeyFetcher() (hpke.KeyFetcher, error) {
-	authenticateURL, transport, err := cfg.resolveAuthenticateURL()
+	authenticateURL, transport, err := cfg.ResolveAuthenticateURL()
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +225,9 @@ func (cfg *Config) GetAuthenticateKeyFetcher() (hpke.KeyFetcher, error) {
 	return hpke.NewKeyFetcher(hpkeURL, transport), nil
 }
 
-func (cfg *Config) resolveAuthenticateURL() (*url.URL, *http.Transport, error) {
+// ResolveAuthenticateURL resolves the authenticate service URL and returns a transport suitable
+// for accessing the authenticate service.
+func (cfg *Config) ResolveAuthenticateURL() (*url.URL, *http.Transport, error) {
 	authenticateURL, err := cfg.Options.GetInternalAuthenticateURL()
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid authenticate service url: %w", err)
