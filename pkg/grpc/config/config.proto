@@ -45,7 +45,13 @@ enum IssuerFormat {
   IssuerURI = 1;
 }
 
-// Next ID: 69.
+enum BearerTokenFormat {
+  BEARER_TOKEN_FORMAT_UNSPECIFIED = 0;
+  BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN = 1;
+  BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN = 2;
+}
+
+// Next ID: 70.
 message Route {
   string name = 1;
   string description = 67;
@@ -131,6 +137,7 @@ message Route {
   optional string idp_client_id = 55;
   optional string idp_client_secret = 56;
   bool show_error_details = 59;
+  optional BearerTokenFormat bearer_token_format = 69;
 }
 
 message PPLPolicy { bytes raw = 1; }
@@ -149,7 +156,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 137.
+// Next ID: 138.
 message Settings {
   message Certificate {
     bytes cert_bytes = 3;
@@ -269,6 +276,7 @@ message Settings {
   optional bool pass_identity_headers = 117;
   map<string, bool> runtime_flags = 118;
   optional uint32 http3_advertise_port = 136;
+  optional BearerTokenFormat bearer_token_format = 137;
 }
 
 message DownstreamMtlsSettings {
