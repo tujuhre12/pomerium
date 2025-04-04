@@ -23,6 +23,7 @@ import (
 type Querier interface {
 	InvalidateCache(ctx context.Context, in *databroker.QueryRequest)
 	Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error)
+	Stop()
 }
 
 // nilQuerier always returns NotFound.
@@ -33,6 +34,8 @@ func (nilQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRequest)
 func (nilQuerier) Query(_ context.Context, _ *databroker.QueryRequest, _ ...grpc.CallOption) (*databroker.QueryResponse, error) {
 	return nil, status.Error(codes.NotFound, "not found")
 }
+
+func (nilQuerier) Stop() {}
 
 type querierKey struct{}
 
@@ -117,6 +120,8 @@ func (q *staticQuerier) Query(_ context.Context, req *databroker.QueryRequest, _
 	return QueryRecordCollections(q.records, req)
 }
 
+func (q *staticQuerier) Stop() {}
+
 type clientQuerier struct {
 	client databroker.DataBrokerServiceClient
 }
@@ -132,6 +137,8 @@ func (q *clientQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRe
 func (q *clientQuerier) Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error) {
 	return q.client.Query(ctx, in, opts...)
 }
+
+func (q *clientQuerier) Stop() {}
 
 type cachingQuerier struct {
 	q     Querier
@@ -180,6 +187,10 @@ func (q *cachingQuerier) Query(ctx context.Context, in *databroker.QueryRequest,
 		return nil, err
 	}
 	return &res, nil
+}
+
+func (q *cachingQuerier) Stop() {
+	q.cache.InvalidateAll()
 }
 
 // MarshalQueryRequest marshales the query request.

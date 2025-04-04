@@ -20,6 +20,8 @@ import (
 type RecordCollection interface {
 	// All returns all of the databroker records as a slice. The slice is in insertion order.
 	All() []*databroker.Record
+	// Clear removes all the records from the collection.
+	Clear()
 	// Get returns a record based on the record id.
 	Get(recordID string) (*databroker.Record, bool)
 	// Len returns the number of records stored in the collection.
@@ -63,6 +65,12 @@ func (c *recordCollection) All() []*databroker.Record {
 		}
 	}
 	return l
+}
+
+func (c *recordCollection) Clear() {
+	c.cidrIndex = bart.Table[[]string]{}
+	clear(c.records)
+	c.insertionOrder = list.New()
 }
 
 func (c *recordCollection) Get(recordID string) (*databroker.Record, bool) {

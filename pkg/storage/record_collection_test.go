@@ -21,7 +21,7 @@ func TestRecordCollection(t *testing.T) {
 
 	r1 := &databroker.Record{
 		Id: "r1",
-		Data: newStructData(t, map[string]any{
+		Data: newStructAny(t, map[string]any{
 			"$index": map[string]any{
 				"cidr": "10.0.0.0/24",
 			},
@@ -29,7 +29,7 @@ func TestRecordCollection(t *testing.T) {
 	}
 	r2 := &databroker.Record{
 		Id: "r2",
-		Data: newStructData(t, map[string]any{
+		Data: newStructAny(t, map[string]any{
 			"$index": map[string]any{
 				"cidr": "192.168.0.0/24",
 			},
@@ -37,7 +37,7 @@ func TestRecordCollection(t *testing.T) {
 	}
 	r3 := &databroker.Record{
 		Id: "r3",
-		Data: newStructData(t, map[string]any{
+		Data: newStructAny(t, map[string]any{
 			"$index": map[string]any{
 				"cidr": "10.0.0.0/16",
 			},
@@ -45,7 +45,7 @@ func TestRecordCollection(t *testing.T) {
 	}
 	r4 := &databroker.Record{
 		Id: "r4",
-		Data: newStructData(t, map[string]any{
+		Data: newStructAny(t, map[string]any{
 			"$index": map[string]any{
 				"cidr": "10.0.0.0/24",
 			},
@@ -123,11 +123,16 @@ func TestRecordCollection(t *testing.T) {
 	assert.Empty(t, cmp.Diff([]*databroker.Record{r3}, rs, protocmp.Transform()))
 }
 
-func newStructData(t *testing.T, m map[string]any) *anypb.Any {
+func newStruct(t *testing.T, m map[string]any) *structpb.Struct {
 	t.Helper()
-
 	s, err := structpb.NewStruct(m)
 	require.NoError(t, err)
+	return s
+}
 
+func newStructAny(t *testing.T, m map[string]any) *anypb.Any {
+	t.Helper()
+	s, err := structpb.NewStruct(m)
+	require.NoError(t, err)
 	return protoutil.NewAny(s)
 }
