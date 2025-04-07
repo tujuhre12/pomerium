@@ -17,10 +17,12 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
+// ErrUnavailable is an error indicating that
+var ErrUnavailable = fmt.Errorf("unavailable")
+
 type syncQuerier struct {
 	client     databroker.DataBrokerServiceClient
 	recordType string
-	fallback   Querier
 
 	cancel              context.CancelFunc
 	serverVersion       uint64
@@ -36,12 +38,10 @@ type syncQuerier struct {
 func NewSyncQuerier(
 	client databroker.DataBrokerServiceClient,
 	recordType string,
-	fallback Querier,
 ) Querier {
 	q := &syncQuerier{
 		client:     client,
 		recordType: recordType,
-		fallback:   fallback,
 		records:    NewRecordCollection(),
 	}
 
@@ -52,29 +52,15 @@ func NewSyncQuerier(
 	return q
 }
 
-func (q *syncQuerier) InvalidateCache(
-	ctx context.Context,
-	req *databroker.QueryRequest,
-) {
-	q.mu.RLock()
-	ready := q.ready
-	q.mu.RUnlock()
-
-	// only invalidate the fallback querier if we aren't ready yet
-	if ready {
-		q.fallback.InvalidateCache(ctx, req)
-	}
+func (q *syncQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRequest) {
+	// do nothing
 }
 
-func (q *syncQuerier) Query(
-	ctx context.Context,
-	req *databroker.QueryRequest,
-	opts ...grpc.CallOption,
-) (*databroker.QueryResponse, error) {
+func (q *syncQuerier) Query(_ context.Context, req *databroker.QueryRequest, _ ...grpc.CallOption) (*databroker.QueryResponse, error) {
 	q.mu.RLock()
 	if !q.ready || req.GetType() != q.recordType {
 		q.mu.RUnlock()
-		return q.fallback.Query(ctx, req, opts...)
+		return nil, ErrUnavailable
 	}
 	defer q.mu.RUnlock()
 	return QueryRecordCollections(map[string]RecordCollection{

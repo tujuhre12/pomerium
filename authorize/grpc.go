@@ -34,11 +34,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	ctx, span := a.tracer.Start(ctx, "authorize.grpc.Check")
 	defer span.End()
 
-	querier := storage.NewCachingQuerier(
-		storage.NewQuerier(a.state.Load().dataBrokerClient),
-		storage.GlobalCache,
-	)
-	ctx = storage.WithQuerier(ctx, querier)
+	ctx = a.withQuerierForCheckRequest(ctx)
 
 	state := a.state.Load()
 
@@ -170,6 +166,14 @@ func (a *Authorize) getMatchingPolicy(routeID uint64) *config.Policy {
 	}
 
 	return nil
+}
+
+func (a *Authorize) withQuerierForCheckRequest(ctx context.Context) context.Context {
+	querier := storage.NewCachingQuerier(
+		storage.NewQuerier(a.state.Load().dataBrokerClient),
+		storage.GlobalCache,
+	)
+	return storage.WithQuerier(ctx, querier)
 }
 
 func getHTTPRequestFromCheckRequest(req *envoy_service_auth_v3.CheckRequest) *http.Request {

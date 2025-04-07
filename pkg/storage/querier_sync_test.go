@@ -29,39 +29,27 @@ func TestSyncQuerier(t *testing.T) {
 
 	client := databrokerpb.NewDataBrokerServiceClient(cc)
 
-	q1r1 := &databrokerpb.Record{
-		Type: "t1",
-		Id:   "r1",
-		Data: protoutil.ToAny("q1"),
-	}
-	q1r2 := &databrokerpb.Record{
-		Type: "t2",
-		Id:   "r2",
-		Data: protoutil.ToAny("q2"),
-	}
-	q1 := storage.NewStaticQuerier(q1r1, q1r2)
-
-	q2r1 := &databrokerpb.Record{
+	r1 := &databrokerpb.Record{
 		Type: "t1",
 		Id:   "r1",
 		Data: protoutil.ToAny("q2"),
 	}
 	_, err := client.Put(ctx, &databrokerpb.PutRequest{
-		Records: []*databrokerpb.Record{q2r1},
+		Records: []*databrokerpb.Record{r1},
 	})
 	require.NoError(t, err)
 
-	q2r2 := &databrokerpb.Record{
+	r2 := &databrokerpb.Record{
 		Type: "t1",
 		Id:   "r2",
 		Data: protoutil.ToAny("q2"),
 	}
 
-	q2 := storage.NewSyncQuerier(client, "t1", q1)
-	t.Cleanup(q2.Stop)
+	q := storage.NewSyncQuerier(client, "t1")
+	t.Cleanup(q.Stop)
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		res, err := q2.Query(ctx, &databrokerpb.QueryRequest{
+		res, err := q.Query(ctx, &databrokerpb.QueryRequest{
 			Type: "t1",
 			Filter: newStruct(t, map[string]any{
 				"id": "r1",
@@ -69,29 +57,17 @@ func TestSyncQuerier(t *testing.T) {
 			Limit: 1,
 		})
 		if assert.NoError(c, err) && assert.Len(c, res.Records, 1) {
-			assert.Empty(c, cmp.Diff(q2r1.Data, res.Records[0].Data, protocmp.Transform()))
+			assert.Empty(c, cmp.Diff(r1.Data, res.Records[0].Data, protocmp.Transform()))
 		}
 	}, time.Second*10, time.Millisecond*50, "should sync records")
 
-	res, err := q2.Query(ctx, &databrokerpb.QueryRequest{
-		Type: "t2",
-		Filter: newStruct(t, map[string]any{
-			"id": "r2",
-		}),
-		Limit: 1,
-	})
-	if assert.NoError(t, err) && assert.Len(t, res.Records, 1) {
-		assert.Empty(t, cmp.Diff(q1r2.Data, res.Records[0].Data, protocmp.Transform()),
-			"should use fallback querier for other record types")
-	}
-
 	_, err = client.Put(ctx, &databrokerpb.PutRequest{
-		Records: []*databrokerpb.Record{q2r2},
+		Records: []*databrokerpb.Record{r2},
 	})
 	require.NoError(t, err)
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		res, err := q2.Query(ctx, &databrokerpb.QueryRequest{
+		res, err := q.Query(ctx, &databrokerpb.QueryRequest{
 			Type: "t1",
 			Filter: newStruct(t, map[string]any{
 				"id": "r2",
@@ -99,7 +75,7 @@ func TestSyncQuerier(t *testing.T) {
 			Limit: 1,
 		})
 		if assert.NoError(c, err) && assert.Len(c, res.Records, 1) {
-			assert.Empty(c, cmp.Diff(q2r2.Data, res.Records[0].Data, protocmp.Transform()))
+			assert.Empty(c, cmp.Diff(r2.Data, res.Records[0].Data, protocmp.Transform()))
 		}
 	}, time.Second*10, time.Millisecond*50, "should pick up changes")
 }
