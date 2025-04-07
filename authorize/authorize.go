@@ -48,7 +48,7 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 
-	state, err := newAuthorizeStateFromConfig(ctx, tracerProvider, cfg, a.store, nil)
+	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func newPolicyEvaluator(
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	currentState := a.state.Load()
 	a.currentConfig.Store(cfg)
-	if newState, err := newAuthorizeStateFromConfig(ctx, a.tracerProvider, cfg, a.store, currentState.evaluator); err != nil {
+	if newState, err := newAuthorizeStateFromConfig(ctx, currentState, a.tracerProvider, cfg, a.store); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(newState)

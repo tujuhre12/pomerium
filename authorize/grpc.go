@@ -169,11 +169,19 @@ func (a *Authorize) getMatchingPolicy(routeID uint64) *config.Policy {
 }
 
 func (a *Authorize) withQuerierForCheckRequest(ctx context.Context) context.Context {
-	querier := storage.NewCachingQuerier(
-		storage.NewQuerier(a.state.Load().dataBrokerClient),
+	state := a.state.Load()
+	q := storage.NewCachingQuerier(
+		storage.NewQuerier(state.dataBrokerClient),
 		storage.GlobalCache,
 	)
-	return storage.WithQuerier(ctx, querier)
+	if len(state.syncQueriers) > 0 {
+		m := map[string]storage.Querier{}
+		for recordType, sq := range state.syncQueriers {
+			m[recordType] = storage.NewFallbackQuerier(sq, q)
+		}
+		q = storage.NewTypedQuerier(q, m)
+	}
+	return storage.WithQuerier(ctx, q)
 }
 
 func getHTTPRequestFromCheckRequest(req *envoy_service_auth_v3.CheckRequest) *http.Request {

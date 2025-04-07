@@ -28,7 +28,7 @@ var (
 
 	// RuntimeFlagAuthorizeUseSyncedData enables synced data for querying the databroker for
 	// certain types of data.
-	RuntimeFlagAuthorizeUseSyncedData = runtimeFlag("authorize_use_synced_data", false)
+	RuntimeFlagAuthorizeUseSyncedData = runtimeFlag("authorize_use_synced_data", true)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features
