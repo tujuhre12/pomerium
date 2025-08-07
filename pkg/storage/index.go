@@ -3,9 +3,12 @@ package storage
 import (
 	"net/netip"
 
+	"github.com/gaissmai/bart"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
+
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 const (
@@ -62,4 +65,27 @@ func GetRecordIndexCIDR(msg proto.Message) *netip.Prefix {
 		return nil
 	}
 	return &prefix
+}
+
+func RecordMatchesIPPrefix(record *databrokerpb.Record, prefix netip.Prefix) bool {
+	cidr := GetRecordIndexCIDR(record.GetData())
+	if cidr == nil {
+		return false
+	}
+
+	var tbl bart.Table[struct{}]
+	tbl.Insert(*cidr, struct{}{})
+	_, ok := tbl.LookupPrefix(prefix)
+	return ok
+}
+
+func RecordMatchesIPAddr(record *databrokerpb.Record, addr netip.Addr) bool {
+	cidr := GetRecordIndexCIDR(record.GetData())
+	if cidr == nil {
+		return false
+	}
+	var tbl bart.Table[struct{}]
+	tbl.Insert(*cidr, struct{}{})
+	_, ok := tbl.Lookup(addr)
+	return ok
 }

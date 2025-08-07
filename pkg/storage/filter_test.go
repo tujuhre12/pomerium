@@ -71,3 +71,63 @@ func TestFilterExpressionFromStruct(t *testing.T) {
 		},
 		expr)
 }
+
+func TestFilterToDNF(t *testing.T) {
+	t.Parallel()
+
+	and := func(fs ...FilterExpression) AndFilterExpression {
+		return AndFilterExpression(fs)
+	}
+	or := func(fs ...FilterExpression) OrFilterExpression {
+		return OrFilterExpression(fs)
+	}
+	eq := func(key, value string) EqualsFilterExpression {
+		return EqualsFilterExpression{Fields: []string{key}, Value: value}
+	}
+
+	for _, tc := range []struct {
+		expect DNF
+		filter FilterExpression
+	}{
+		{
+			expect: DNF{
+				{eq("A", "1")},
+			},
+			filter: eq("A", "1"),
+		},
+		{
+			expect: DNF{
+				{eq("A", "1"), eq("B", "2")},
+			},
+			filter: and(
+				eq("A", "1"),
+				eq("B", "2"),
+			),
+		},
+		{
+			expect: DNF{
+				{eq("A", "1")},
+				{eq("B", "2")},
+			},
+			filter: or(
+				eq("A", "1"),
+				eq("B", "2"),
+			),
+		},
+		{
+			expect: DNF{
+				{eq("A", "1"), eq("C", "3")},
+				{eq("A", "1"), eq("D", "4")},
+				{eq("B", "2"), eq("C", "3")},
+				{eq("B", "2"), eq("D", "4")},
+			},
+			filter: and(
+				or(eq("A", "1"), eq("B", "2")),
+				or(eq("C", "3"), eq("D", "4")),
+			),
+		},
+	} {
+		actual := FilterToDNF(tc.filter)
+		assert.Equal(t, tc.expect.String(), actual.String())
+	}
+}

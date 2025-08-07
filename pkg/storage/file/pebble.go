@@ -373,20 +373,7 @@ func listLatestRecords(
 	r reader,
 	filter storage.FilterExpression,
 ) ([]*databrokerpb.Record, error) {
-	// this is currently inefficient, we need to implement:
-	// (1) iterating over a single record type
-	// (2) retrieving a single record by (type, id)
-	// (3) retrieving records by CIDR index
-	var records []*databrokerpb.Record
-	for record, err := range recordKeySpace.iterateAll(r) {
-		if err != nil {
-			return nil, fmt.Errorf("pebble: error iterating over records: %w", err)
-		}
-		if recordMatches(record, filter) {
-			records = append(records, record)
-		}
-	}
-	return records, nil
+	return storage.RecordIteratorToList(iterateRecordsForFilter(r, filter))
 }
 
 func listTypes(
