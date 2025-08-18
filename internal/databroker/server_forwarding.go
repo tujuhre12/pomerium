@@ -2,15 +2,22 @@ package databroker
 
 import (
 	"context"
+	"strings"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
+
+const maxForwards = 1
 
 type forwardingServer struct {
 	conn *grpc.ClientConn
@@ -22,51 +29,75 @@ func NewForwardingServer(conn *grpc.ClientConn) Server {
 }
 
 func (srv *forwardingServer) AcquireLease(ctx context.Context, req *databroker.AcquireLeaseRequest) (*databroker.AcquireLeaseResponse, error) {
-	return databroker.NewDataBrokerServiceClient(srv.conn).AcquireLease(forwardMetadata(ctx), req)
+	return forwardUnary(ctx, func(ctx context.Context) (*databroker.AcquireLeaseResponse, error) {
+		return databroker.NewDataBrokerServiceClient(srv.conn).AcquireLease(ctx, req)
+	})
 }
 
 func (srv *forwardingServer) Get(ctx context.Context, req *databroker.GetRequest) (*databroker.GetResponse, error) {
-	return databroker.NewDataBrokerServiceClient(srv.conn).Get(forwardMetadata(ctx), req)
+	return forwardUnary(ctx, func(ctx context.Context) (*databroker.GetResponse, error) {
+		return databroker.NewDataBrokerServiceClient(srv.conn).Get(ctx, req)
+	})
 }
 
 func (srv *forwardingServer) List(ctx context.Context, req *registry.ListRequest) (*registry.ServiceList, error) {
-	return registry.NewRegistryClient(srv.conn).List(forwardMetadata(ctx), req)
+	return forwardUnary(ctx, func(ctx context.Context) (*registry.ServiceList, error) {
+		return registry.NewRegistryClient(srv.conn).List(ctx, req)
+	})
 }
 
 func (srv *forwardingServer) ListTypes(ctx context.Context, req *emptypb.Empty) (*databroker.ListTypesResponse, error) {
-	return databroker.NewDataBrokerServiceClient(srv.conn).ListTypes(forwardMetadata(ctx), req)
+	return forwardUnary(ctx, func(ctx context.Context) (*databroker.ListTypesResponse, error) {
+		return databroker.NewDataBrokerServiceClient(srv.conn).ListTypes(ctx, req)
+	})
 }
 
 func (srv *forwardingServer) Patch(ctx context.Context, req *databroker.PatchRequest) (*databroker.PatchResponse, error) {
-	return databroker.NewDataBrokerServiceClient(srv.conn).Patch(forwardMetadata(ctx), req)
+	return forwardUnary(ctx, func(ctx context.Context) (*databroker.PatchResponse, error) {
+		return databroker.NewDataBrokerServiceClient(srv.conn).Patch(ctx, req)
+	})
 }
 
 func (srv *forwardingServer) Put(ctx context.Context, req *databroker.PutRequest) (*databroker.PutResponse, error) {
-	return databroker.NewDataBrokerServiceClient(srv.conn).Put(forwardMetadata(ctx), req)
+	return forwardUnary(ctx, func(ctx context.Context) (*databroker.PutResponse, error) {
+		return databroker.NewDataBrokerServiceClient(srv.conn).Put(ctx, req)
+	})
 }
 
 func (srv *forwardingServer) Query(ctx context.Context, req *databroker.QueryRequest) (*databroker.QueryResponse, error) {
-	return databroker.NewDataBrokerServiceClient(srv.conn).Query(forwardMetadata(ctx), req)
+	return forwardUnary(ctx, func(ctx context.Context) (*databroker.QueryResponse, error) {
+		return databroker.NewDataBrokerServiceClient(srv.conn).Query(ctx, req)
+	})
 }
 
 func (srv *forwardingServer) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeaseRequest) (*emptypb.Empty, error) {
-	return databroker.NewDataBrokerServiceClient(srv.conn).ReleaseLease(forwardMetadata(ctx), req)
+	return forwardUnary(ctx, func(ctx context.Context) (*emptypb.Empty, error) {
+		return databroker.NewDataBrokerServiceClient(srv.conn).ReleaseLease(ctx, req)
+	})
 }
 
 func (srv *forwardingServer) RenewLease(ctx context.Context, req *databroker.RenewLeaseRequest) (*emptypb.Empty, error) {
-	return databroker.NewDataBrokerServiceClient(srv.conn).RenewLease(forwardMetadata(ctx), req)
+	return forwardUnary(ctx, func(ctx context.Context) (*emptypb.Empty, error) {
+		return databroker.NewDataBrokerServiceClient(srv.conn).RenewLease(ctx, req)
+	})
 }
 
 func (srv *forwardingServer) Report(ctx context.Context, req *registry.RegisterRequest) (*registry.RegisterResponse, error) {
-	return registry.NewRegistryClient(srv.conn).Report(forwardMetadata(ctx), req)
+	return forwardUnary(ctx, func(ctx context.Context) (*registry.RegisterResponse, error) {
+		return registry.NewRegistryClient(srv.conn).Report(ctx, req)
+	})
 }
 
 func (srv *forwardingServer) ServerInfo(ctx context.Context, req *emptypb.Empty) (*databroker.ServerInfoResponse, error) {
-	return databroker.NewDataBrokerServiceClient(srv.conn).ServerInfo(forwardMetadata(ctx), req)
+	return forwardUnary(ctx, func(ctx context.Context) (*databroker.ServerInfoResponse, error) {
+		return databroker.NewDataBrokerServiceClient(srv.conn).ServerInfo(ctx, req)
+	})
 }
 
 func (srv *forwardingServer) SetOptions(ctx context.Context, req *databroker.SetOptionsRequest) (*databroker.SetOptionsResponse, error) {
-	return databroker.NewDataBrokerServiceClient(srv.conn).SetOptions(forwardMetadata(ctx), req)
+	return forwardUnary(ctx, func(ctx context.Context) (*databroker.SetOptionsResponse, error) {
+		return databroker.NewDataBrokerServiceClient(srv.conn).SetOptions(ctx, req)
+	})
 }
 
 func (srv *forwardingServer) Sync(req *databroker.SyncRequest, stream grpc.ServerStreamingServer[databroker.SyncResponse]) error {
@@ -91,21 +122,45 @@ func (srv *forwardingServer) Stop() {}
 
 func (srv *forwardingServer) OnConfigChange(_ context.Context, _ *config.Config) {}
 
+func checkMaxForwards(ctx context.Context) error {
+	forwardedFor := grpcutil.ForwardedForFromIncoming(ctx)
+	if len(forwardedFor) >= maxForwards {
+		return status.Errorf(codes.FailedPrecondition, "request forwarded for %s which exceeds the maximum number of forwards (%d)",
+			strings.Join(forwardedFor, ","), maxForwards)
+	}
+	return nil
+}
+
 func forwardMetadata(ctx context.Context) context.Context {
-	inMD, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return ctx
+	if inMD, ok := metadata.FromIncomingContext(ctx); ok {
+		outMD, ok := metadata.FromOutgoingContext(ctx)
+		if !ok {
+			outMD = make(metadata.MD)
+		}
+		for k, vs := range inMD {
+			outMD.Append(k, vs...)
+		}
+		ctx = metadata.NewOutgoingContext(ctx, outMD)
 	}
 
-	outMD, ok := metadata.FromOutgoingContext(ctx)
-	if !ok {
-		outMD = make(metadata.MD)
+	forwardedFor := grpcutil.ForwardedForFromIncoming(ctx)
+	if p, ok := peer.FromContext(ctx); ok {
+		forwardedFor = append(forwardedFor, p.Addr.String())
+	} else {
+		forwardedFor = append(forwardedFor, "127.0.0.1")
 	}
-	for k, vs := range inMD {
-		outMD.Append(k, vs...)
-	}
+	ctx = grpcutil.WithOutgoingForwardedFor(ctx, forwardedFor)
 
-	return metadata.NewOutgoingContext(ctx, outMD)
+	return ctx
+}
+
+func forwardUnary[T any](ctx context.Context, fn func(ctx context.Context) (T, error)) (T, error) {
+	if err := checkMaxForwards(ctx); err != nil {
+		var zero T
+		return zero, err
+	}
+	ctx = forwardMetadata(ctx)
+	return fn(ctx)
 }
 
 func forwardStream[T any](
@@ -114,6 +169,10 @@ func forwardStream[T any](
 ) error {
 	ctx, cancel := context.WithCancel(serverStream.Context())
 	defer cancel()
+
+	if err := checkMaxForwards(ctx); err != nil {
+		return err
+	}
 
 	clientStream, err := getClientStream(forwardMetadata(ctx))
 	if err != nil {
