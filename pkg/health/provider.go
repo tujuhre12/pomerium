@@ -6,8 +6,8 @@ import (
 
 // Attr is a key-value pair that can be attached to a health check
 type Attr struct {
-	Key   string
-	Value string
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // StrAttr creates a new string attribute
@@ -28,6 +28,26 @@ func ReportOK(check Check, attributes ...Attr) {
 	provider.ReportOK(check, attributes...)
 }
 
+func ReportStarting(check Check, attributes ...Attr) {
+	provider.ReportStatus(check, StatusStarting, attributes...)
+}
+
+func ReportTerminating(check Check, attributes ...Attr) {
+	provider.ReportStatus(check, StatusTerminating, attributes...)
+}
+
+func ReportStatus(check Check, status Status, attributes ...Attr) {
+	provider.ReportStatus(check, status, attributes...)
+}
+
+func HandleCheckError(check Check, err error, attributes ...Attr) {
+	if err != nil {
+		ReportError(check, err, attributes...)
+	} else {
+		ReportOK(check, attributes...)
+	}
+}
+
 var ErrInternalError = errors.New("internal error")
 
 // ReportInternalError reports that a check failed due to an internal error
@@ -42,6 +62,7 @@ func ReportError(check Check, err error, attributes ...Attr) {
 
 // Provider is the interface that must be implemented by a health check reporter
 type Provider interface {
+	ReportStatus(check Check, status Status, attributes ...Attr)
 	ReportOK(check Check, attributes ...Attr)
 	ReportError(check Check, err error, attributes ...Attr)
 }

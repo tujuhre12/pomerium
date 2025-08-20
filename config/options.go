@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -310,6 +311,37 @@ type Options struct {
 
 	HTTP3AdvertisePort       null.Uint32               `mapstructure:"-" yaml:"-" json:"-"`
 	CircuitBreakerThresholds *CircuitBreakerThresholds `mapstructure:"circuit_breaker_thresholds" yaml:"circuit_breaker_thresholds" json:"circuit_breaker_thresholds"`
+
+	HealthChecks HealthCheckOptions
+}
+
+type HealthCheckOptions struct {
+	Filters          HealthCheckFilter     `mapstructure:",squash" yaml:",inline"`
+	HealthInterfaces HealthProviderOptions `mapstrucure:"health_interfaces" yaml:"health_interfaces"`
+}
+
+type HealthProviderOptions struct {
+	HTTP HTTPProviderOptions
+
+	GRPC   struct{}
+	Metric struct{}
+	Zero   struct{}
+}
+
+type HTTPProviderOptions struct {
+	StartupProbe    ProbeOption
+	ReadyProbe      ProbeOption
+	LivelinessProbe ProbeOption
+}
+
+type ProbeOption struct {
+	Enabled bool
+	Path    string
+}
+
+type HealthCheckFilter struct {
+	Exclude   []string         `mapstructure:"exclude" yaml:"exclude"`
+	ExcludeRe []*regexp.Regexp `mapstructure:"exclude_re" yaml:"exclude_re"`
 }
 
 type certificateFilePair struct {
